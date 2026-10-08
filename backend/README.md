@@ -5,6 +5,15 @@ apply patches). Runs the same on Ubuntu, macOS and Windows; participants install
 
 Architecture and decisions: [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md).
 
+## Quick launch (from any directory)
+
+```
+./run_backend.sh                 # judge + API on :8080 (builds judge assets on first run)
+./run_frontend.sh                # website on :3000, proxies /api to the backend
+./run_frontend.sh --mock         # website alone with mock data
+```
+Team/event administration is done with the `admin` commands below.
+
 ## Set-up (once)
 
 ```
