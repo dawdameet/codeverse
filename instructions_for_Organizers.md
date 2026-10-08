@@ -269,6 +269,27 @@ python codeverse.py submit OB-003                 # from inside their OBELISK fo
 
 ---
 
+## 10b. The shortlisting games (website, `/games`)
+
+Five browser games live in the same website (nav item **Games**): Crack the Safe (easy), The Ledger Audit and Guard Patrol (medium),
+Logic Lockpick (intermediate), Bug Hunt Terminal (hard). They need no backend and work offline.
+
+- **Official run vs practice:** each team gets **one official run** per game with the *same* seeded puzzles for everyone
+  (seeds in `frontend/lib/games/registry.ts`); practice uses random puzzles and is never recorded.
+- **Scoring:** each game reports its own points; the hub shows a combined total as `weight x percentage` with weights
+  Easy 1, Medium 2, Intermediate 3, Hard 4 (max 1200). Weights live in `registry.ts`.
+- **Where results live (for now):** the participant's browser (`localStorage`), per team ID. There is **no games leaderboard
+  yet** - next step is a backend endpoint plus a leaderboard page. Until then results cannot be compared across teams.
+- **Re-run a game for a team / testing:** in the browser console run `localStorage.setItem("codeverse.games.dev","1")` to allow
+  unlimited official runs on that browser (remove the key to restore the limit).
+- **Known limitation:** the answer keys (Safe codes, Ledger anomalies, Bug Hunt answers) are generated in the browser, so a
+  determined person could read them from the page source. Fine for a supervised round; for a hard guarantee, move the
+  generators/`grade()` to the backend (they are pure functions in `frontend/lib/games/`).
+- **Tests:** `cd frontend && node --experimental-strip-types --test tests/games.test.ts` (checks the generators, rules,
+  solvability of every patrol level, and runs the Bug Hunt snippets in Python to prove the answer key).
+
+---
+
 ## 11. Command cheat sheet (run from `backend/`)
 
 ```bash
