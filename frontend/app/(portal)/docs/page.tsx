@@ -1,19 +1,34 @@
-import { PageTitle } from "@/components/ui";
+"use client";
+
+import { useState } from "react";
+import {
+  BookOpen,
+  Terminal,
+  ShieldAlert,
+  HelpCircle,
+  FileText,
+  ListOrdered,
+  Award,
+  GitBranch,
+  Laptop,
+  Radio,
+} from "lucide-react";
+import { CopyButton, DifficultyTag, PageTitle } from "@/components/ui";
 import { config } from "@/lib/config";
 import { CHALLENGES } from "@/lib/mock/data";
 
 const SECTIONS = [
-  ["about", "What is Codeverse?"],
-  ["story", "Competition story"],
-  ["phase-1", "Phase 1 — The Royal Mint"],
-  ["phase-2", "Phase 2 — The Escape"],
-  ["challenges", "Challenge overview"],
-  ["rules", "Rules"],
-  ["scoring", "Scoring"],
-  ["submission", "Submission rules"],
-  ["testing", "Local testing"],
-  ["cli", "CLI submission"],
-  ["event", "Event information"],
+  { id: "about", label: "What is Codeverse?", icon: HelpCircle },
+  { id: "story", label: "Competition Story", icon: BookOpen },
+  { id: "phase-1", label: "Phase 1: Royal Mint", icon: FileText },
+  { id: "phase-2", label: "Phase 2: The Escape", icon: Radio },
+  { id: "challenges", label: "Challenge Overview", icon: ListOrdered },
+  { id: "rules", label: "Competition Rules", icon: ShieldAlert },
+  { id: "scoring", label: "Scoring & Loot", icon: Award },
+  { id: "submission", label: "Submission Rules", icon: GitBranch },
+  { id: "testing", label: "Local Testing", icon: Laptop },
+  { id: "cli", label: "CLI Workflow", icon: Terminal },
+  { id: "event", label: "Event Telemetry", icon: Radio },
 ] as const;
 
 function Section({
@@ -26,9 +41,13 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="prose-doc scroll-mt-6 border-b border-line py-8">
-      <h2 className="display text-4xl">
-        <span className="text-red">{"// "}</span>
+    <section id={id} className="prose-doc scroll-mt-28 border-b border-white/[0.08] py-10">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="font-mono text-xs font-bold text-red-vibrant bg-red-950/60 border border-red/40 px-2 py-0.5 rounded">
+          {"// BRIEFING"}
+        </span>
+      </div>
+      <h2 className="display text-3xl sm:text-4xl font-extrabold text-white mb-6">
         {title}
       </h2>
       {children}
@@ -37,196 +56,249 @@ function Section({
 }
 
 export default function DocsPage() {
-  return (
-    <>
-      <PageTitle kicker="BRIEFING" title="Documentation" />
-      <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
-        <nav aria-label="Documentation sections" className="lg:sticky lg:top-6 lg:self-start">
-          <ul className="flex gap-2 overflow-x-auto lg:flex-col lg:gap-0">
-            {SECTIONS.map(([id, label]) => (
-              <li key={id}>
-                <a
-                  href={`#${id}`}
-                  className="block whitespace-nowrap border-l-2 border-line px-3 py-1 text-xs tracking-wider text-paper-dim hover:border-red hover:text-paper"
-                >
-                  {label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+  const [activeSection, setActiveSection] = useState("about");
 
-        <div className="min-w-0 -mt-8">
+  return (
+    <div className="space-y-8">
+      <PageTitle
+        kicker="MISSION INTEL"
+        title="Command Documentation"
+        subtitle="Operational briefing, competition rules, and system protocols for CODEVERSE 2.0."
+      />
+
+      <div className="grid gap-10 lg:grid-cols-[260px_1fr]">
+        {/* Sticky Translucent Sidebar Navigation */}
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <div className="rounded-2xl border border-white/[0.08] bg-black/40 p-3 backdrop-blur-xl">
+            <div className="label text-[10px] text-paper-dim/80 px-3 py-2 border-b border-white/[0.06] mb-2">
+              NAVIGATION INDEX
+            </div>
+            <nav aria-label="Documentation sections">
+              <ul className="flex gap-1 overflow-x-auto lg:flex-col no-scrollbar">
+                {SECTIONS.map((s) => {
+                  const Icon = s.icon;
+                  const isActive = activeSection === s.id;
+                  return (
+                    <li key={s.id}>
+                      <a
+                        href={`#${s.id}`}
+                        onClick={() => setActiveSection(s.id)}
+                        className={`flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium transition-all duration-150 ${
+                          isActive
+                            ? "bg-red text-white font-semibold shadow-[0_2px_10px_rgba(224,38,31,0.4)]"
+                            : "text-paper-dim hover:text-white hover:bg-white/[0.05]"
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        <span>{s.label}</span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        {/* Documentation Content Body */}
+        <div className="min-w-0 -mt-10">
           <Section id="about" title="What is Codeverse?">
             <p>
-              CODEVERSE 2.0 is a software-engineering competition organised by
-              DJS CodeAI. It is not a LeetCode-style contest. You are an
-              engineer who has inherited a damaged production system, and you
-              must read it, understand what it is meant to do, find what is
-              wrong and repair it.
+              <strong>CODEVERSE 2.0</strong> is a premier software engineering and debugging
+              competition organized by <strong>DJS CodeAI</strong>. It is not an abstract LeetCode
+              puzzle contest. Instead, you and your crew step into the shoes of elite engineers
+              inheriting a real-world, damaged production system.
             </p>
-            <p>The competition tests:</p>
-            <ul>
-              <li>debugging and reading unfamiliar code</li>
-              <li>data structures and algorithms</li>
-              <li>parsing and software engineering</li>
-              <li>algorithmic complexity and optimisation</li>
-              <li>reasoning under pressure</li>
-            </ul>
             <p>
-              <strong>This website is your command center.</strong> It shows
-              the rules, the challenges, your phase, score, rank and the live
-              leaderboard. You do not write or submit code here. All coding
-              happens in the separate <span className="code">OBELISK</span>{" "}
-              repository, which you receive separately.
+              Your objective is to read unfamiliar architecture, formulate hypotheses, reproduce
+              boundary defects, and repair the damaged subsystems under high pressure.
+            </p>
+
+            <div className="my-6 rounded-2xl border border-white/10 bg-gradient-to-r from-red-950/20 via-ink-2/80 to-ink-2 p-6">
+              <div className="label text-[10px] text-red-vibrant mb-2">CORE SKILL MATRIX</div>
+              <ul className="!my-0 grid gap-2 sm:grid-cols-2 text-xs font-mono">
+                <li>Reading complex codebases</li>
+                <li>Data structure integrity</li>
+                <li>Algorithmic complexity &amp; scale</li>
+                <li>Parser &amp; state machine recovery</li>
+                <li>Edge-case diagnosis</li>
+                <li>Execution under deadline pressure</li>
+              </ul>
+            </div>
+
+            <p>
+              <strong>This portal is your mission command center.</strong> Here you monitor the
+              rules, challenge briefings, phase countdowns, your score, and the live competition
+              leaderboard. You do not edit code directly here — all coding is conducted inside the{" "}
+              <span className="code">OBELISK</span> repository.
             </p>
           </Section>
 
-          <Section id="story" title="Competition story">
+          <Section id="story" title="Competition Story">
             <p>
-              The crew has gained access to the Royal Mint&apos;s internal
-              intelligence system: <strong>OBELISK</strong>, a command-line
-              Search &amp; Intelligence Engine. It has been compromised. Several
-              of its systems are malfunctioning. Repair it, then use it to get
-              out.
+              The crew has breached the internal network of the Royal Mint. At the center of the
+              compound sits <strong>OBELISK</strong>, a high-performance Search &amp; Intelligence
+              Engine.
+            </p>
+            <p>
+              A coordinated sabotage incident has corrupted multiple OBELISK subsystems. Vault
+              ledgers are failing, query history is corrupting state, and search indexing is dropping
+              records. To execute the plan and extract the prize, you must restore OBELISK to full
+              operational fidelity.
             </p>
           </Section>
 
           <Section id="phase-1" title="Phase 1 — The Royal Mint">
             <p>
-              Investigate and repair OBELISK. Phase 1 contains exactly six
-              primary vulnerabilities, from <span className="code">OB-001</span>{" "}
-              (beginner) to <span className="code">OB-006</span> (elite). Each
-              is a separate fault in a different subsystem. The website tells
-              you what is misbehaving; finding out why, and fixing it, is your
-              job.
+              Phase 1 consists of exactly six primary vulnerabilities, spanning from{" "}
+              <span className="code">OB-001</span> (Beginner) to <span className="code">OB-006</span>{" "}
+              (Elite). Each defect resides in an independent subsystem of OBELISK.
+            </p>
+            <p>
+              The mission dossier highlights observed anomalies and intended behaviors.
+              Isolating the root defect and crafting the surgical patch is the responsibility of
+              your crew.
             </p>
           </Section>
 
           <Section id="phase-2" title="Phase 2 — The Escape">
             <p>
-              The system is repaired, but the extraction begins and OBELISK
-              must handle much larger workloads. Phase 2 focuses on performance,
-              scalability, algorithmic complexity and optimisation. Its
-              challenges are released when the phase opens; the dashboard shows
-              whether it is upcoming, active or closed.
+              Once core integrity is re-established, the escape begins. In Phase 2, OBELISK will be
+              subjected to extreme synthetic load and high-concurrency throughput.
             </p>
             <p>
-              A <strong>bonus challenge</strong> — an extension to OBELISK worth
-              brownie points — will also be announced. Its status appears on
-              the Challenges page.
+              Phase 2 challenges emphasize algorithmic complexity, cache eviction efficiency, and
+              memory optimization. Details unlock immediately when Phase 1 terminates.
             </p>
           </Section>
 
-          <Section id="challenges" title="Challenge overview">
-            <div className="my-4 overflow-x-auto">
-              <table className="w-full min-w-[480px] text-left text-sm">
-                <thead className="label border-b border-line">
+          <Section id="challenges" title="Challenge Overview">
+            <div className="my-6 overflow-x-auto rounded-2xl border border-white/[0.08] bg-black/40">
+              <table className="w-full min-w-[500px] text-left text-sm">
+                <thead className="label border-b border-white/[0.08] bg-white/[0.02]">
                   <tr>
-                    <th className="py-2 font-normal">ID</th>
-                    <th className="font-normal">Subsystem</th>
-                    <th className="font-normal">Difficulty</th>
-                    <th className="text-right font-normal">Points</th>
+                    <th className="px-5 py-3 font-semibold">ID</th>
+                    <th className="px-5 py-3 font-semibold">Subsystem Target</th>
+                    <th className="px-5 py-3 font-semibold">Difficulty</th>
+                    <th className="px-5 py-3 text-right font-semibold">Loot Points</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-white/[0.04]">
                   {CHALLENGES.map((c) => (
-                    <tr key={c.id} className="border-b border-line/50">
-                      <td className="py-2 text-red">{c.id}</td>
-                      <td>{c.name}</td>
-                      <td>{c.difficulty}</td>
-                      <td className="text-right">{c.points}</td>
+                    <tr key={c.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-5 py-3 font-mono font-bold text-red-vibrant">{c.id}</td>
+                      <td className="px-5 py-3 font-medium text-white">{c.name}</td>
+                      <td className="px-5 py-3">
+                        <DifficultyTag level={c.difficulty} />
+                      </td>
+                      <td className="px-5 py-3 text-right font-mono font-bold text-gold">
+                        {c.points} PTS
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <p>
-              Challenge pages describe the expected behaviour and the observed
-              behaviour. They never reveal the faulty line, the intended
-              algorithm or a solution strategy.
+              Each dossier provides expected output contracts and reproduction notes without
+              revealing internal algorithms or solutions.
             </p>
           </Section>
 
-          <Section id="rules" title="Rules">
-            <ul>
-              <li>Work only inside your own copy of OBELISK.</li>
-              <li>Fix the faults; do not tamper with the judging system, the CLI or the network.</li>
-              <li>Do not share code or solutions with other teams.</li>
-              <li>Judging decisions by the organisers are final.</li>
-              <li>Core functionality works entirely on the event LAN — no internet is required.</li>
-            </ul>
+          <Section id="rules" title="Competition Rules">
+            <div className="rounded-2xl border border-red/40 bg-red-950/20 p-6 my-4 space-y-3">
+              <div className="flex items-center gap-2 text-red-vibrant font-bold text-sm">
+                <ShieldAlert className="h-4 w-4" />
+                <span>OFFICIAL ENGAGEMENT RULES:</span>
+              </div>
+              <ul className="!my-0 space-y-2 text-xs sm:text-sm text-paper-dim">
+                <li>Operate exclusively inside your assigned OBELISK repository fork.</li>
+                <li>Do not tamper with the judging server, scoring APIs, or local event LAN infrastructure.</li>
+                <li>No cross-crew collaboration or leakage of solutions.</li>
+                <li>Organizing committee and automated judging decisions are final.</li>
+                <li>Core competition services operate 100% offline over the isolated event LAN.</li>
+              </ul>
+            </div>
           </Section>
 
-          <Section id="scoring" title="Scoring">
+          <Section id="scoring" title="Scoring &amp; Loot">
             <p>
-              Each challenge has a fixed point value shown on its card. Points
-              are awarded when the official judging system accepts your patch
-              for that challenge. Your score, rank and the leaderboard come from
-              the Codeverse server and refresh automatically.
+              Points are allocated per challenge according to difficulty. When your patch passes
+              all verification suites on the official judging server, the points are credited to
+              your crew immediately.
             </p>
             <p>
-              Total possible Phase 1 score:{" "}
-              <strong>{CHALLENGES.reduce((n, c) => n + c.points, 0)}</strong>{" "}
-              points.
+              Total Phase 1 Loot Bounty:{" "}
+              <strong className="text-gold font-mono text-base">
+                {CHALLENGES.reduce((n, c) => n + c.points, 0)} POINTS
+              </strong>
             </p>
           </Section>
 
-          <Section id="submission" title="Submission rules">
-            <p>
-              <strong>ONE BUG = ONE PATCH.</strong> Start from the official
-              OBELISK base and make one commit per bug:
-            </p>
-            <pre>{`BASE
-  └─ FIX[OB-001]: repair vault index
+          <Section id="submission" title="Submission Protocol">
+            <div className="rounded-2xl border border-white/10 bg-black/60 p-6 my-4">
+              <div className="text-xs font-mono font-bold text-gold mb-2">
+                THE PROFESSOR&apos;S GOLDEN RULE: ONE BUG = ONE PATCH
+              </div>
+              <p className="!my-0 text-xs text-paper-dim">
+                Every patch must branch or sequentially build from the base with isolated commits:
+              </p>
+              <pre className="!my-4">{`BASE
+  └─ FIX[OB-001]: repair vault index boundary
        └─ FIX[OB-002]: repair transaction lookup
-            └─ FIX[OB-003]: repair query history`}</pre>
-            <ul>
-              <li>Each fix is submitted independently.</li>
-              <li>A patch should address one challenge only.</li>
-              <li>Submission happens through the CLI, never through this website.</li>
-            </ul>
+            └─ FIX[OB-003]: restore query history stack`}</pre>
+              <p className="!my-0 text-xs text-paper-dim">
+                Never bundle fixes for multiple bugs into a single commit.
+              </p>
+            </div>
           </Section>
 
-          <Section id="testing" title="Local testing">
+          <Section id="testing" title="Local Testing">
             <p>
-              Public tests are provided for local development and debugging.
-              Official judging is performed using the Codeverse judging system.
+              Public test harnesses are provided in the OBELISK repository for local sanity
+              checking. You are encouraged to write your own regression tests.
             </p>
             <p>
-              You may modify your local tests, but they have no authority over
-              your official score. A green local run does not guarantee an
-              accepted patch.
+              Note: Local test passing does not guarantee official acceptance. The server executes
+              an expanded test suite under varied adversarial inputs.
             </p>
           </Section>
 
-          <Section id="cli" title="CLI submission">
+          <Section id="cli" title="CLI Workflow">
             <p>
-              The Codeverse CLI sends your committed fix to the judging server
-              over the event LAN. Exact commands and credentials are provided
-              with the CLI on event day; the flow is:
+              The Codeverse CLI handles authentication and patch transmission to the judging server.
             </p>
-            <pre>{`1. commit   git commit -m "FIX[OB-003]: repair query history"
-2. submit   <codeverse CLI> submit OB-003
-3. watch    score and rank update on this website`}</pre>
-            <p>Command names above are illustrative and may differ in the released CLI.</p>
+            <div className="rounded-xl border border-white/10 bg-black/80 p-4 my-4 font-mono text-xs space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-2">
+                <span>git commit -m &quot;FIX[OB-001]: repair vault index&quot;</span>
+                <CopyButton text='git commit -m "FIX[OB-001]: repair vault index"' label="COPY" />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span>codeverse submit OB-001</span>
+                <CopyButton text="codeverse submit OB-001" label="COPY" />
+              </div>
+            </div>
           </Section>
 
-          <Section id="event" title="Event information">
-            <ul>
-              <li>Organiser: DJS CodeAI</li>
+          <Section id="event" title="Event Telemetry">
+            <ul className="space-y-2 text-xs sm:text-sm text-paper-dim">
               <li>
-                Server address:{" "}
-                <span className="code">
-                  {config.apiMode === "http" ? config.apiBaseUrl : "mock data (not connected)"}
+                <strong className="text-white">Host:</strong> DJS CodeAI
+              </li>
+              <li>
+                <strong className="text-white">API Gateway:</strong>{" "}
+                <span className="code font-mono">
+                  {config.apiMode === "http" ? config.apiBaseUrl : "MOCK MODE (Simulation Engine)"}
                 </span>
               </li>
-              <li>Server status is shown in the top bar of every page.</li>
-              <li>If the bar shows OFFLINE, check your LAN connection, then ask a volunteer.</li>
+              <li>
+                <strong className="text-white">Telemetry status:</strong> Displayed on the floating
+                top bar on all screens.
+              </li>
             </ul>
           </Section>
         </div>
       </div>
-    </>
+    </div>
   );
 }
