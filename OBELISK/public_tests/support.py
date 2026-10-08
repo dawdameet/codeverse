@@ -26,6 +26,8 @@ DATA = ROOT / "data"
 LAUNCHER = ROOT / "obelisk.py"
 
 sys.path.insert(0, str(SRC))
+if SRC != ROOT / "src":  # running against a copy of the sources elsewhere
+    os.environ.setdefault("OBELISK_DATA_DIR", str(DATA))
 
 from obelisk.cli import main  # noqa: E402
 

@@ -71,7 +71,7 @@ def _build_derived(documents) -> InvertedIndex:
 
 
 def cmd_ingest(args) -> int:
-    root = Path(args.path) if args.path else config.DEFAULT_DATA_DIR
+    root = Path(args.path) if args.path else config.data_dir()
     result = ingest_path(root.resolve())
     store.save_store(result.documents, result.transactions, str(root.resolve()))
     index = _build_derived(result.documents)
@@ -264,7 +264,7 @@ def cmd_cache(args) -> int:
 
 
 def cmd_logs(args) -> int:
-    path = Path(args.file) if args.file else config.DEFAULT_LOG_FILE
+    path = Path(args.file) if args.file else config.default_log_file()
     stats = analyse(path)
     lines = [
         f"LOG ANALYSIS: {stats['file']}",
