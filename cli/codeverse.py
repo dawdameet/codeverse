@@ -38,7 +38,7 @@ REASONS = {
     "JUDGE_ERROR": "The judge had an internal error. Ask an organizer; try again shortly.",
     "EVENT_NOT_LIVE": "The event is not live right now.",
     "EVENT_ENDED": "The event has ended.",
-    "PHASE_NOT_OPEN": "This phase is not open for submissions.",
+    "PHASE_NOT_OPEN": "OBELISK submissions open in Phase 2 (the debugging round). Phase 1 is the games.",
 }
 
 

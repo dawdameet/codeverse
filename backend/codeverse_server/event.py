@@ -10,10 +10,10 @@ from datetime import datetime, timezone
 
 from .db import Database, now
 
-PHASE_NAMES = {1: "THE ROYAL MINT", 2: "THE ESCAPE"}
+PHASE_NAMES = {1: "THE INFILTRATION", 2: "THE ROYAL MINT"}
 PHASE_TAGLINES = {
-    1: "Investigate and repair the compromised OBELISK system.",
-    2: "Make OBELISK fast enough to complete the extraction.",
+    1: "Five quick games to get the crew past the Mint's outer defences.",
+    2: "Investigate and repair the compromised OBELISK system.",
 }
 
 
@@ -33,7 +33,7 @@ def phase(db: Database) -> int:
     return int(db.kv_get("phase", "1"))
 
 
-def start(db: Database, phase1_minutes: float = 180, phase2_minutes: float = 90, gap_minutes: float = 15) -> None:
+def start(db: Database, phase1_minutes: float = 60, phase2_minutes: float = 180, gap_minutes: float = 10) -> None:
     t = now()
     p1_end = t + phase1_minutes * 60
     p2_start = p1_end + gap_minutes * 60
@@ -73,16 +73,18 @@ def set_phase(db: Database, number: int) -> None:
         t = now()
         length = _f(db, "phase2_end") - _f(db, "phase2_start", t)
         db.kv_set("phase2_start", t)
-        db.kv_set("phase2_end", t + (length if length > 0 else 90 * 60))
+        db.kv_set("phase2_end", t + (length if length > 0 else 180 * 60))
+        db.kv_set("phase1_end", min(_f(db, "phase1_end"), t))  # phase 1 is over once phase 2 opens
 
 
 def accepting_submissions(db: Database) -> tuple[bool, str]:
     st = status(db)
     if st != "LIVE":
         return False, "EVENT_NOT_LIVE" if st != "ENDED" else "EVENT_ENDED"
-    if phase(db) != 1:
+    # OBELISK patches are only accepted in phase 2 (phase 1 is the games round)
+    if phase(db) != 2:
         return False, "PHASE_NOT_OPEN"
-    if now() > _f(db, "phase1_end"):
+    if now() > _f(db, "phase2_end"):
         return False, "EVENT_ENDED"
     return True, ""
 

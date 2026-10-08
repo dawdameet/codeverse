@@ -90,16 +90,16 @@ function phases(): Phase[] {
   return [
     {
       id: 1,
-      name: "THE ROYAL MINT",
-      tagline: "Investigate and repair the compromised OBELISK system.",
+      name: "THE INFILTRATION",
+      tagline: "Five quick games to get the crew past the Mint's outer defences.",
       status: phase === 1 ? "ACTIVE" : "COMPLETED",
       startTime: iso(p1.start),
       endTime: iso(p1.end),
     },
     {
       id: 2,
-      name: "THE ESCAPE",
-      tagline: "Make OBELISK fast enough to complete the extraction.",
+      name: "THE ROYAL MINT",
+      tagline: "Investigate and repair the compromised OBELISK system.",
       status: phase === 2 ? "ACTIVE" : "UPCOMING",
       startTime: iso(p2.start),
       endTime: iso(p2.end),

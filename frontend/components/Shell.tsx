@@ -10,13 +10,12 @@ import { useLive } from "@/lib/hooks";
 import { Countdown } from "./Countdown";
 import { DaliMask } from "./DaliMask";
 import { MockControls } from "./MockControls";
-import { ServerDot } from "./ui";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/challenges", label: "Challenges" },
-  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/games", label: "Games" },
+  { href: "/challenges", label: "OBELISK" },
+  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/docs", label: "Docs" },
 ];
 
@@ -104,7 +103,6 @@ export function Shell({ children }: { children: ReactNode }) {
       <footer className="border-t border-line py-4">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 text-xs text-paper-dim sm:px-6">
           <span>CODEVERSE 2.0 · DJS CodeAI</span>
-          <ServerDot status={server} />
         </div>
       </footer>
       <MockControls />

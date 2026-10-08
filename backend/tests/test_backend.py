@@ -16,6 +16,14 @@ class Intake(BackendCase):
             self.app.submit(self.team(), "OB-001", self.factory.fix("OB-001"))
         self.assertEqual((cm.exception.status, cm.exception.code), (403, "EVENT_NOT_LIVE"))
 
+    def test_submissions_are_closed_during_the_games_phase(self):
+        event.set_phase(self.app.db, 1)
+        with self.assertRaises(ApiError) as cm:
+            self.app.submit(self.team(), "OB-001", self.factory.fix("OB-001"))
+        self.assertEqual((cm.exception.status, cm.exception.code), (403, "PHASE_NOT_OPEN"))
+        event.set_phase(self.app.db, 2)
+        self.assertEqual(self.app.submit(self.team(), "OB-001", "garbage")["reason"], "BAD_PATCH")
+
     def test_unknown_challenge(self):
         with self.assertRaises(ApiError) as cm:
             self.app.submit(self.team(), "OB-999", "x")
@@ -206,9 +214,10 @@ class Http(BackendCase):
     def test_public_endpoints_and_auth(self):
         self.assertEqual(self.call("GET", "/api/health")[1]["ok"], True)
         code, status = self.call("GET", "/api/status")
-        self.assertEqual((code, status["status"], status["phase"]), (200, "LIVE", 1))
+        self.assertEqual((code, status["status"], status["phase"]), (200, "LIVE", 2))
         code, phases = self.call("GET", "/api/phases")
-        self.assertEqual([p["status"] for p in phases], ["ACTIVE", "UPCOMING"])
+        self.assertEqual([p["status"] for p in phases], ["COMPLETED", "ACTIVE"])
+        self.assertEqual([p["name"] for p in phases], ["THE INFILTRATION", "THE ROYAL MINT"])
         self.assertEqual(self.call("GET", "/api/leaderboard")[0], 200)
         self.assertEqual(self.call("GET", "/api/me")[0], 401)
         self.assertEqual(self.call("POST", "/api/login", {"teamId": "CV-001", "accessCode": "nope"})[0], 401)

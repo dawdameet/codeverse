@@ -184,8 +184,9 @@ python codeverse.py submit OB-003                 # from inside their OBELISK fo
 
 ### 6.2 Start of event
 1. Servers running (section 3). Admin panel signed in.
-2. Overview > **Start event** (Phase 1 minutes, default 180) - or `admin start --phase1-minutes 180`. Until then submissions are refused ("event not live") and the website shows the countdown at zero.
-3. Optionally publish an **announcement** ("Phase 1 is live - good luck").
+2. Overview > **Start event** (Phase 1 = games, default 60 min; Phase 2 = OBELISK, default 180 min) - or `admin start --phase1-minutes 60 --phase2-minutes 180`. The event opens in **Phase 1**: participants play the five games; the OBELISK challenges are locked on the website and CLI submissions are refused (`PHASE_NOT_OPEN`).
+   **When the games round is over, press Overview > "Open phase 2 (OBELISK)"** (or `admin phase 2`): the challenges appear, submissions are accepted, official game runs close, and the countdown switches to the Phase 2 clock. Nothing switches phases automatically. and the website shows the countdown at zero.
+3. Optionally publish an **announcement** ("Phase 1 is live - good luck", later "Phase 2 is open: OBELISK repos at the ready").
 4. Watch Overview: queue depth, open flags.
 
 ### 6.3 During the event - your dashboard
@@ -214,7 +215,7 @@ python codeverse.py submit OB-003                 # from inside their OBELISK fo
 
 ## 7. How scoring works (so you can explain it)
 
-- Points per bug: OB-001 50, OB-002 75, OB-003 100, OB-004 150, OB-005 200, OB-006 300 (total 875). The bonus challenge and Phase 2 are not wired yet.
+- **Phase 1 (games)** is scored in the browser (see 10b); **Phase 2 (OBELISK)** is what the backend judges and what the leaderboard shows. The OBELISK points per bug: OB-001 50, OB-002 75, OB-003 100, OB-004 150, OB-005 200, OB-006 300 (total 875).
 - A bug is solved when the patch is **ACCEPTED**: all tests for that bug pass **and** nothing that previously passed now fails (`PASSED = TOTAL`). Participants only ever see `PASSED x/y`.
 - One bug = one patch. A commit must be labelled `FIX[OB-00X]` and match the challenge submitted; it may only change files under `src/obelisk/`; a patch that fixes two bugs is rejected; already-solved bugs are rejected.
 - **Time bonus:** for each bug, solvers are ranked by *submission time*. With N solvers, the rank-r solver gets `points x maxBonus x (N-r)/(N-1)` (a lone solver gets the full `points x maxBonus`). `maxBonus` defaults to 0.5. **Hidden until you Finalize**, so the leaderboard shows base points during the event.
@@ -261,7 +262,7 @@ python codeverse.py submit OB-003                 # from inside their OBELISK fo
 
 - **No sandbox isolation** (no Docker): participant code runs in a throw-away directory with a timeout, process-tree kill, and CPU/memory limits on Linux/macOS; there is no network or filesystem isolation. With supervised participants this is acceptable; do not run the judge on a laptop holding anything private.
 - **The private tests are on the server** (`backend/judge_assets/private_tests`). Keep the server physically yours.
-- **Phase 2 and the bonus challenge** are placeholders in the website; the judge currently only handles the six Phase 1 bugs.
+- The bonus challenge (formula engine) is not built; its panel was removed from the website. The judge handles the six OBELISK bugs (Phase 2).
 - The OB-006 timing threshold (0.5 s for the official workload; the reference takes ~0.01 s) is generous; if your laptop is much slower, re-measure (`python3 obelisk.py bench --json` inside a fixed copy) before the event - see `OBELISK/ORGANIZERS-ONLY/PERFORMANCE.md`.
 - Access codes are stored in plain text on purpose (so you can reprint slips). The data folder is the secret.
 - The admin panel's *Force accept*, *Grant solve* and *Adjust* are your overrides; use them sparingly and add a reason - they are all in the Audit log.
@@ -278,6 +279,8 @@ Logic Lockpick (intermediate), Bug Hunt Terminal (hard). They need no backend an
   (seeds in `frontend/lib/games/registry.ts`); practice uses random puzzles and is never recorded.
 - **Scoring:** each game reports its own points; the hub shows a combined total as `weight x percentage` with weights
   Easy 1, Medium 2, Intermediate 3, Hard 4 (max 1200). Weights live in `registry.ts`.
+- **Phase rules:** official runs only work while the event is LIVE in **Phase 1**; once you open Phase 2 they close (practice stays open).
+  The OBELISK challenges are hidden until Phase 2 (or the event has ended).
 - **Where results live (for now):** the participant's browser (`localStorage`), per team ID. There is **no games leaderboard
   yet** - next step is a backend endpoint plus a leaderboard page. Until then results cannot be compared across teams.
 - **Re-run a game for a team / testing:** in the browser console run `localStorage.setItem("codeverse.games.dev","1")` to allow
@@ -297,7 +300,7 @@ python3 -m codeverse_server admin token                  # admin panel token
 python3 -m codeverse_server admin init                   # data dir, db, judge status
 python3 -m codeverse_server admin make-teams --count 30 --out teams.csv
 python3 -m codeverse_server admin import-teams teams.csv
-python3 -m codeverse_server admin start --phase1-minutes 180
+python3 -m codeverse_server admin start --phase1-minutes 60 --phase2-minutes 180
 python3 -m codeverse_server admin status                 # event + queue
 python3 -m codeverse_server admin queue                  # in-flight jobs
 python3 -m codeverse_server admin submissions --team CV-007
@@ -306,7 +309,7 @@ python3 -m codeverse_server admin flags
 python3 -m codeverse_server admin rejudge <id>
 python3 -m codeverse_server admin invalidate <id>        # --undo to restore
 python3 -m codeverse_server admin disqualify CV-007      # --undo to restore
-python3 -m codeverse_server admin pause | resume | end | phase 2
+python3 -m codeverse_server admin pause | resume | end | phase 2     # "phase 2" opens OBELISK
 python3 -m codeverse_server admin finalize
 python3 -m codeverse_server admin export --out results.csv
 ```

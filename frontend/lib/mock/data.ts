@@ -15,7 +15,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: "OB-001",
     name: "VAULT INDEX INTEGRITY",
     difficulty: "BEGINNER",
-    phase: 1,
+    phase: 2,
     points: 50,
     summary:
       "OBELISK's document index silently drops valid data near its boundaries.",
@@ -34,7 +34,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: "OB-002",
     name: "TRANSACTION LOOKUP",
     difficulty: "EASY",
-    phase: 1,
+    phase: 2,
     points: 75,
     summary:
       "Some valid transaction IDs cannot be retrieved from OBELISK's ledger.",
@@ -53,7 +53,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: "OB-003",
     name: "QUERY HISTORY",
     difficulty: "MEDIUM",
-    phase: 1,
+    phase: 2,
     points: 100,
     summary:
       "OBELISK's query history does not always restore the correct previous state.",
@@ -72,7 +72,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: "OB-004",
     name: "QUERY PARSER",
     difficulty: "INTERMEDIATE",
-    phase: 1,
+    phase: 2,
     points: 150,
     summary:
       "Some valid compound search expressions return incorrect results.",
@@ -91,7 +91,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: "OB-005",
     name: "QUERY CACHE",
     difficulty: "HARD",
-    phase: 1,
+    phase: 2,
     points: 200,
     summary:
       "Recently used queries vanish from OBELISK's cache while stale ones survive.",
@@ -110,7 +110,7 @@ export const CHALLENGES: ChallengeDef[] = [
     id: "OB-006",
     name: "AUTOCOMPLETE AT SCALE",
     difficulty: "ELITE",
-    phase: 1,
+    phase: 2,
     points: 300,
     summary:
       "Autocomplete is correct on small vocabularies but grinds to a halt as they grow.",
@@ -121,7 +121,7 @@ export const CHALLENGES: ChallengeDef[] = [
     observedBehavior:
       "Results are correct but latency climbs sharply with vocabulary size. Large vocabularies take orders of magnitude longer than small ones.",
     relatedDocs: [
-      { label: "Phase 2 — The Escape", anchor: "phase-2" },
+      { label: "Scoring", anchor: "scoring" },
       { label: "Scoring", anchor: "scoring" },
     ],
   },

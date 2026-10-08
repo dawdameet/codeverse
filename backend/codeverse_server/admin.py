@@ -53,7 +53,7 @@ def cmd_import_teams(app: App, a) -> int:
 
 def cmd_start(app: App, a) -> int:
     event.start(app.db, a.phase1_minutes, a.phase2_minutes, a.gap_minutes)
-    print(f"event LIVE - phase 1 ends in {a.phase1_minutes:g} minutes")
+    print(f"event LIVE - phase 1 (games) ends in {a.phase1_minutes:g} minutes; run `admin phase 2` to open OBELISK submissions")
     return 0
 
 
@@ -199,10 +199,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--out", default="teams.csv")
     sp = add("import-teams", cmd_import_teams, "import/update teams from a CSV (teamId,teamName,accessCode)")
     sp.add_argument("file")
-    sp = add("start", cmd_start, "open the event (phase 1)")
-    sp.add_argument("--phase1-minutes", type=float, default=180)
-    sp.add_argument("--phase2-minutes", type=float, default=90)
-    sp.add_argument("--gap-minutes", type=float, default=15)
+    sp = add("start", cmd_start, "open the event (phase 1 = games; switch to phase 2 for OBELISK)")
+    sp.add_argument("--phase1-minutes", type=float, default=60)
+    sp.add_argument("--phase2-minutes", type=float, default=180)
+    sp.add_argument("--gap-minutes", type=float, default=10)
     add("pause", cmd_simple(event.pause, "event PAUSED (submissions closed)"), "pause the event")
     add("resume", cmd_simple(event.resume, "event LIVE (deadlines shifted by the pause)"), "resume the event")
     add("end", cmd_simple(event.end, "event ENDED"), "end the event")

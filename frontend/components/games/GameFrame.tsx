@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { api } from "@/lib/api";
 import { type GameMeta } from "@/lib/games/registry";
+import { useLive } from "@/lib/hooks";
+import { gamesOpen } from "@/lib/phase";
 import { devMode, saveOfficial, useGameResults, type GameResult } from "@/lib/games/storage";
 
 export type Mode = "practice" | "official";
@@ -107,7 +110,10 @@ export function GameFrame({
   const [run, setRun] = useState<{ mode: Mode; seed: number; id: number } | null>(null);
   const [result, setResult] = useState<{ r: GameResult; mode: Mode } | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const status = useLive(() => api.getStatus(), [], 5000);
+  const window_ = gamesOpen(status.data);
   const locked = Boolean(previous) && !devMode();
+  const closed = !window_.open && !devMode();
 
   const start = (mode: Mode) => {
     setResult(null);
@@ -202,6 +208,8 @@ export function GameFrame({
         </button>
         {locked ? (
           <span className="text-sm text-paper-dim">You have already used your official run.</span>
+        ) : closed ? (
+          <span className="text-sm text-amber">{window_.reason} Official runs are only open during Phase 1.</span>
         ) : confirming ? (
           <>
             <button className="btn" onClick={() => start("official")}>

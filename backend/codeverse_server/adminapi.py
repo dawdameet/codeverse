@@ -140,8 +140,8 @@ def event_action(app: App, body: dict) -> dict:
     action = str(body.get("action", ""))
     db = app.db
     if action == "start":
-        event.start(db, float(body.get("phase1Minutes", 180)), float(body.get("phase2Minutes", 90)),
-                    float(body.get("gapMinutes", 15)))
+        event.start(db, float(body.get("phase1Minutes", 60)), float(body.get("phase2Minutes", 180)),
+                    float(body.get("gapMinutes", 10)))
     elif action == "pause":
         event.pause(db)
     elif action == "resume":

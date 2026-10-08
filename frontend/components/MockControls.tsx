@@ -98,12 +98,12 @@ export function MockControls() {
           />
 
           <Group
-            label="ACTIVE HEIST PHASE"
+            label="ACTIVE PHASE"
             icon={<Shield className="h-3 w-3 text-gold" />}
             value={s.phase}
             options={[
-              { v: 1, t: "PHASE 1 (MINT)" },
-              { v: 2, t: "PHASE 2 (ESCAPE)" },
+              { v: 1, t: "PHASE 1 (GAMES)" },
+              { v: 2, t: "PHASE 2 (OBELISK)" },
             ]}
             onPick={(phase) => set({ phase })}
           />

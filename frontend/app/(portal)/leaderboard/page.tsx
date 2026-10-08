@@ -14,7 +14,7 @@ export default function LeaderboardPage() {
     <div>
       <PageTitle
         title="Leaderboard"
-        subtitle="Updates every few seconds. Time bonuses are added when the event ends."
+        subtitle="OBELISK round (Phase 2). Updates every few seconds. Time bonuses are added when the event ends."
         right={
           me.data && (
             <a href="#my-team" className="btn btn-ghost !text-sm">

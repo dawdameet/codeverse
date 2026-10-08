@@ -14,7 +14,7 @@ export default function GamesHub() {
     <div className="space-y-8">
       <PageTitle
         title="Games"
-        subtitle="Five short games for the shortlisting round. Each has one official run; practise first with different puzzles."
+        subtitle="Phase 1 · The Infiltration. Five short games, easiest to hardest. Each has one official run; practise first with different puzzles."
         right={
           <div className="text-right">
             <div className="label">Your total</div>

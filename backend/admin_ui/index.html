@@ -152,18 +152,18 @@ async function vOverview(ov) {
     <p>${pill(e.status)} phase ${e.phase}: ${esc(p.name)} ${e.finalized?'<span class="tag">scores finalized</span>':""}</p>
     <p class="dim">Phase ends: ${esc(new Date(p.endTime).toLocaleString([], {hour12:false}))}</p>
     ${e.status==="NOT_STARTED"||e.status==="ENDED" ? `
-      <div class="row"><label>Phase 1 minutes</label><input id="p1" type="number" value="180" style="width:80px">
-      <label>Phase 2</label><input id="p2" type="number" value="90" style="width:80px"><button class="b" id="evStart">Start event</button></div>` : `
+      <div class="row"><label>Phase 1 minutes (games)</label><input id="p1" type="number" value="60" style="width:80px">
+      <label>Phase 2 (OBELISK)</label><input id="p2" type="number" value="180" style="width:80px"><button class="b" id="evStart">Start event</button></div>` : `
       <div class="row">
        ${e.status==="LIVE"?'<button class="b g" data-ev="pause">Pause</button>':'<button class="b" data-ev="resume">Resume</button>'}
-       <button class="b g" data-ev="phase2">Switch to phase 2</button><button class="b g" data-ev="phase1">Back to phase 1</button>
+       <button class="b g" data-ev="phase2">Open phase 2 (OBELISK)</button><button class="b g" data-ev="phase1">Back to phase 1 (games)</button>
        <button class="b warn" id="evEnd">End event</button></div>
       <div class="row"><label>Add minutes to current phase</label><input id="ext" type="number" value="10" style="width:70px"><button class="b g sm" id="evExtend">Extend</button></div>`}
     <div class="row">${e.finalized?'<button class="b g" data-ev="unfinalize">Hide time bonus (un-finalize)</button>':'<button class="b g" id="evFinal">Finalize scores (publish time bonus)</button>'}</div>
    </div>
    <div class="card"><h2>Announcement banner</h2>
     <p class="dim">Shown at the top of the participant website.</p>
-    <div class="row"><input id="ann" value="${esc(e.announcement)}" placeholder="e.g. Phase 1 extended by 10 minutes" style="flex:1" maxlength="300">
+    <div class="row"><input id="ann" value="${esc(e.announcement)}" placeholder="e.g. Phase 2 starts in 5 minutes" style="flex:1" maxlength="300">
     <button class="b" id="annSave">Publish</button><button class="b g" id="annClear">Clear</button></div>
     <h3 style="margin-top:18px">Settings</h3>
     <div class="row"><label>Max time bonus</label><input id="mb" type="number" step="0.05" value="${s.maxBonus}" style="width:80px"><span class="dim">(0.5 = +50% for the fastest solver)</span></div>

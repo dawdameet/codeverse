@@ -2,14 +2,19 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ObeliskLocked } from "@/components/Locked";
 import { CopyButton, DifficultyTag, Loading, NoSignal, Panel, StatusBadge } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useLive } from "@/lib/hooks";
+import { obeliskOpen } from "@/lib/phase";
 
 export default function ChallengePage() {
   const { id } = useParams<{ id: string }>();
-  const { data: c, error } = useLive(() => api.getChallenge(id), [id]);
+  const status = useLive(() => api.getStatus(), [], 5000);
+  const open = obeliskOpen(status.data);
+  const { data: c, error } = useLive(() => (open ? api.getChallenge(id) : Promise.resolve(null)), [id, open]);
 
+  if (status.data && !open) return <ObeliskLocked />;
   if (!c) {
     if (error?.code === "NOT_FOUND")
       return (

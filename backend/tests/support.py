@@ -87,6 +87,7 @@ class BackendCase(unittest.TestCase):
         for i in (1, 2, 3):
             auth.upsert_team(self.app.db, f"CV-00{i}", f"Team {i}", f"code{i}")
         event.start(self.app.db, phase1_minutes=60)
+        event.set_phase(self.app.db, 2)  # OBELISK submissions are only accepted in phase 2
         start_workers(self.app)
 
     def tearDown(self):

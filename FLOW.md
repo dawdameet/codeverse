@@ -55,7 +55,10 @@ adm()       { (cd "$CV/backend" && python3 -m codeverse_server admin "$@"); }   
 - [ ] **Teams** tab -> *Add a team*: name `Dry Run`, leave ID/Code empty -> **Add**. It gets ID `CV-001`.
       Click the `••••••` in the *Access code* column to reveal the code. Note it: `export CODE=<code>`.
 - [ ] Add a **second** team (`Dry Run B`, `CV-002`) - used in Part 8 for the time bonus.
-- [ ] **Overview** -> *Start event* (Phase 1 = 60 minutes) -> the pill at the top turns `LIVE - phase 1`.
+- [ ] **Overview** -> *Start event* (Phase 1 games = 60 min, Phase 2 OBELISK = 180 min) -> the pill turns `LIVE - phase 1`.
+      The event opens in **Phase 1 (the games)**: the website's **OBELISK** tab is locked and CLI submissions are refused.
+- [ ] *(Optional, 5 min)* Log in on the website as a team and play one game, e.g. Crack the Safe as an official run, to see Phase 1 working.
+- [ ] **When you are ready for the OBELISK part:** Overview -> **Open phase 2 (OBELISK)**. The website unlocks the OBELISK tab, official game runs close, and submissions are accepted. **Do this before Part 3's login/submit steps.**
 - [ ] Optional: publish an announcement: `Dry run in progress`. Open the website later and see the gold banner.
 
 ---

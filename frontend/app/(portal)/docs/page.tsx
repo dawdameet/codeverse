@@ -20,8 +20,8 @@ import { CHALLENGES } from "@/lib/mock/data";
 const SECTIONS = [
   { id: "about", label: "What is Codeverse?", icon: HelpCircle },
   { id: "story", label: "Competition Story", icon: BookOpen },
-  { id: "phase-1", label: "Phase 1: Royal Mint", icon: FileText },
-  { id: "phase-2", label: "Phase 2: The Escape", icon: Radio },
+  { id: "phase-1", label: "Phase 1: The Infiltration", icon: FileText },
+  { id: "phase-2", label: "Phase 2: The Royal Mint", icon: Radio },
   { id: "challenges", label: "Challenge Overview", icon: ListOrdered },
   { id: "rules", label: "Competition Rules", icon: ShieldAlert },
   { id: "scoring", label: "Scoring & Loot", icon: Award },
@@ -148,27 +148,36 @@ export default function DocsPage() {
             </p>
           </Section>
 
-          <Section id="phase-1" title="Phase 1 — The Royal Mint">
+          <Section id="phase-1" title="Phase 1 — The Infiltration (games)">
             <p>
-              Phase 1 consists of exactly six primary vulnerabilities, spanning from{" "}
-              <span className="code">OB-001</span> (Beginner) to <span className="code">OB-006</span>{" "}
-              (Elite). Each defect resides in an independent subsystem of OBELISK.
+              Before anyone touches code, the crew has to get past the Mint&apos;s outer defences.
+              Phase 1 is a set of five short games played in the browser, from easy to hard:
             </p>
+            <ul>
+              <li><strong>Crack the Safe</strong> (easy): deduce secret vault codes.</li>
+              <li><strong>The Ledger Audit</strong> (medium): spot tampered entries in a table.</li>
+              <li><strong>Guard Patrol</strong> (medium): plan a route past guards and lasers.</li>
+              <li><strong>Logic Lockpick</strong> (intermediate): build circuits from logic gates.</li>
+              <li><strong>Bug Hunt Terminal</strong> (hard): read code, predict its output, find the bug.</li>
+            </ul>
             <p>
-              The mission dossier highlights observed anomalies and intended behaviors.
-              Isolating the root defect and crafting the surgical patch is the responsibility of
-              your crew.
+              Each game has a practice mode (random puzzles, not recorded) and <strong>one official run</strong>{" "}
+              with the same puzzles for every team. Harder games count for more in your Phase 1 total
+              (Easy ×1, Medium ×2, Intermediate ×3, Hard ×4).
             </p>
           </Section>
 
-          <Section id="phase-2" title="Phase 2 — The Escape">
+          <Section id="phase-2" title="Phase 2 — The Royal Mint (OBELISK)">
             <p>
-              Once core integrity is re-established, the escape begins. In Phase 2, OBELISK will be
-              subjected to extreme synthetic load and high-concurrency throughput.
+              When the organizers open Phase 2, the OBELISK challenges are revealed. There are exactly
+              six primary vulnerabilities, spanning from <span className="code">OB-001</span> (Beginner)
+              to <span className="code">OB-006</span> (Elite). Each defect resides in an independent
+              subsystem of OBELISK.
             </p>
             <p>
-              Phase 2 challenges emphasize algorithmic complexity, cache eviction efficiency, and
-              memory optimization. Details unlock immediately when Phase 1 terminates.
+              The mission dossier highlights observed anomalies and intended behaviors. Isolating the
+              root defect and crafting the surgical patch is the responsibility of your crew. Patches
+              are submitted with the Codeverse CLI, and only while Phase 2 is open.
             </p>
           </Section>
 
@@ -223,7 +232,12 @@ export default function DocsPage() {
 
           <Section id="scoring" title="Scoring &amp; Loot">
             <p>
-              Points are allocated per challenge according to difficulty. When your patch passes
+              <strong>Phase 1 (games):</strong> every game awards points for correct play and a
+              little for speed. Your games total is shown on the dashboard.
+            </p>
+            <p>
+              <strong>Phase 2 (OBELISK):</strong> points are allocated per challenge according to
+              difficulty. When your patch passes
               all verification suites on the official judging server, the points are credited to
               your crew immediately.
             </p>
@@ -234,7 +248,7 @@ export default function DocsPage() {
               the leaderboard shows base points.
             </p>
             <p>
-              Total Phase 1 Loot Bounty:{" "}
+              Total Phase 2 Loot Bounty:{" "}
               <strong className="text-gold font-mono text-base">
                 {CHALLENGES.reduce((n, c) => n + c.points, 0)} POINTS
               </strong>
