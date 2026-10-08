@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+data/
+judge_assets/
+teams.csv
+results.csv
