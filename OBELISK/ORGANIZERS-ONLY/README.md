@@ -8,6 +8,7 @@ Everything in this directory is for the organizers. It reveals every bug and its
 |-------------------------|----------------------------------------------------------------|
 | `BUGS.md`               | the six injected defects: cause, files, fix, tests             |
 | `ARCHITECTURE.md`       | internal design notes for organizers                           |
+| `SOLUTIONS.md`         | step-by-step fix for every bug (repro, broken code, fix, why) |
 | `REFERENCE-SOLUTION.md` | clean implementation and its recorded test results            |
 | `TEST-MAPPING.md`       | which tests detect which bug (generated from `test_mapping.json`) |
 | `PERFORMANCE.md`        | the ELITE (OB-006) benchmark specification                     |
