@@ -49,7 +49,7 @@ def build_index(documents: list[Document]) -> InvertedIndex:
     lo = 0
     while lo <= last:
         hi = min(lo + SEGMENT_SIZE - 1, last)  # inclusive end of this segment
-        for i in range(lo, hi + 1):
+        for i in range(lo, hi):
             index.add(docs[i])
         lo = hi + 1
     return index

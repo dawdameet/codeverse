@@ -40,6 +40,12 @@ def run(*argv: str) -> tuple[int, str, str]:
     return code, out.getvalue(), err.getvalue()
 
 
+def indexed_ids() -> set[str]:
+    """Document IDs present in the current state's index."""
+    path = Path(os.environ["OBELISK_HOME"]) / "index.json"
+    return set(json.loads(path.read_text(encoding="utf-8"))["doc_ids"])
+
+
 def run_json(*argv: str) -> dict:
     code, out, err = run(*argv, "--json")
     if code != 0:

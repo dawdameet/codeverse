@@ -18,7 +18,7 @@ from .errors import QueryError
 
 _TOKEN = re.compile(r"\s*(?:(\()|(\))|([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*))")
 
-_PRECEDENCE = {"OR": 1, "AND": 2, "NOT": 3}
+_PRECEDENCE = {"OR": 1, "NOT": 2, "AND": 3}
 _UNARY = {"NOT"}
 _OPERATORS = set(_PRECEDENCE)
 

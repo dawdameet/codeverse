@@ -20,7 +20,6 @@ class QueryHistory:
         return self.states[self.cursor] if self.cursor >= 0 else None
 
     def push(self, query: str) -> None:
-        del self.states[self.cursor + 1 :]
         self.states.append(query)
         if len(self.states) > MAX_ENTRIES:
             del self.states[0]

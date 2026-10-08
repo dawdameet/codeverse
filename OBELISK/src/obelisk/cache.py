@@ -55,7 +55,6 @@ class LRUCache:
             self.misses += 1
             return None
         self.hits += 1
-        self._touch(node)
         return node.value
 
     def put(self, key: str, value) -> None:

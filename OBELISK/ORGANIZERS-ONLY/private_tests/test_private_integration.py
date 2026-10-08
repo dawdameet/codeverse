@@ -10,6 +10,16 @@ import support
 from support import StateTestCase, run, run_json
 
 
+def _middle_tx():
+    import csv
+    with open(support.DATA / "transactions" / "transactions.csv", newline="", encoding="utf-8") as fh:
+        ids = [r["id"] for r in csv.DictReader(fh)]
+    return ids[len(ids) // 2]
+
+
+MIDDLE = _middle_tx()
+
+
 def cli(*args, home):
     env = dict(os.environ, OBELISK_HOME=home, PYTHONPATH=str(support.SRC))
     return subprocess.run([sys.executable, "-m", "obelisk", *args],
@@ -24,7 +34,7 @@ class PrivateIntegration(unittest.TestCase):
             self.assertEqual(p.returncode, 0)
             self.assertIn("results", json.loads(p.stdout))
             self.assertEqual(cli("suggest", "sec", home=home).returncode, 0)
-            self.assertEqual(cli("transaction", "TX-10005", home=home).returncode, 0)
+            self.assertEqual(cli("transaction", MIDDLE, home=home).returncode, 0)
             self.assertEqual(cli("history", home=home).returncode, 0)
             self.assertEqual(cli("status", home=home).returncode, 0)
             self.assertEqual(cli("search", "(", home=home).returncode, 4)

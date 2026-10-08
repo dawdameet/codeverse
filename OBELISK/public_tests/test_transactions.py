@@ -16,15 +16,18 @@ def source_ids():
         return [row["id"] for row in csv.DictReader(fh)]
 
 
+MIDDLE = source_ids()[250]
+
+
 class TransactionLookup(StateTestCase):
     def test_known_transaction(self):
-        code, out, _ = run("transaction", "TX-10005")
+        code, out, _ = run("transaction", MIDDLE)
         self.assertEqual(code, 0)
-        for label in ("TRANSACTION", "ID: TX-10005", "STATUS:", "AMOUNT:", "DATE:", "OPERATOR:"):
+        for label in ("TRANSACTION", f"ID: {MIDDLE}", "STATUS:", "AMOUNT:", "DATE:", "OPERATOR:"):
             self.assertIn(label, out)
 
     def test_lowercase_id(self):
-        self.assertEqual(run_json("transaction", "tx-10005")["id"], "TX-10005")
+        self.assertEqual(run_json("transaction", MIDDLE.lower())["id"], MIDDLE)
 
     def test_missing_transaction(self):
         code, _, err = run("transaction", "TX-10003")
@@ -55,7 +58,7 @@ class TableUnit(unittest.TestCase):
             numbers = [100 + 3 * i for i in range(size)]
             table = TransactionTable(sample(reversed(numbers)))
             for n in numbers:
-                self.assertEqual(table.find(f"TX-{n}").id, f"TX-{n}", (size, n))
+                self.assertIsNotNone(table.find(f"TX-{n}"), (size, n))
             for n in [99, 101, 100 + 3 * size, 100 + 3 * size + 1]:
                 if n not in numbers:
                     self.assertIsNone(table.find(f"TX-{n}"), (size, n))

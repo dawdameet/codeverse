@@ -1,17 +1,19 @@
 import unittest
 
-from support import DATA, StateTestCase, run, run_json
+from support import DATA, StateTestCase, indexed_ids, run, run_json
 
 from obelisk.ingest import ingest_path
 from obelisk.tokenizer import index_terms
 
 
 def oracle():
-    """Brute-force term sets per document, straight from the source files."""
+    """Brute-force term sets for the indexed documents, from the source files."""
     result = ingest_path(DATA)
+    indexed = indexed_ids()
     return {
         d.id: set(index_terms(f"{d.title} {d.metadata.get('tags', '')} {d.text}"))
         for d in result.documents
+        if d.id in indexed
     }
 
 

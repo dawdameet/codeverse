@@ -60,9 +60,9 @@ class AutocompleteScale(unittest.TestCase):
 
     def test_large_vocabulary_stays_fast(self):
         """A generous smoke check; the official benchmark is stricter."""
-        result = bench.run_autocomplete(60_000, 300, 1337)
-        self.assertLess(result["query_seconds"], 2.0,
-                        f"300 queries took {result['query_seconds']}s on 60k terms")
+        result = bench.run_autocomplete(100_000, 500, 1337)
+        self.assertLess(result["query_seconds"], 1.0,
+                        f"500 queries took {result['query_seconds']}s on 100k terms")
 
 
 if __name__ == "__main__":

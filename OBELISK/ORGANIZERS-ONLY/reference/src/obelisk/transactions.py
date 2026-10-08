@@ -28,17 +28,20 @@ class TransactionTable:
         return len(self._records)
 
     def _locate(self, number: int) -> int:
-        """Position of ``number`` in the sorted ID list, or -1."""
-        lo, hi = 0, len(self._numbers) - 1
-        while lo <= hi:
+        """Position of ``number`` in the sorted ID list, or -1.
+
+        Invariant: if the number is present, its position lies in [lo, hi).
+        """
+        numbers = self._numbers
+        lo, hi = 0, len(numbers)
+        while hi - lo > 1:
             mid = (lo + hi) // 2
-            value = self._numbers[mid]
-            if value == number:
-                return mid
-            if value < number:
-                lo = mid + 1
+            if numbers[mid] <= number:
+                lo = mid
             else:
-                hi = mid - 1
+                hi = mid
+        if numbers and numbers[lo] == number:
+            return lo
         return -1
 
     def find(self, tx_id: str) -> Transaction | None:

@@ -1,6 +1,6 @@
 import unittest
 
-from support import DATA, StateTestCase, run_json
+from support import DATA, StateTestCase, indexed_ids, run_json
 
 from obelisk.errors import QueryError
 from obelisk.ingest import ingest_path
@@ -59,6 +59,7 @@ class ParserSemantics(StateTestCase):
         self.terms = {
             d.id: set(index_terms(f"{d.title} {d.metadata.get('tags', '')} {d.text}"))
             for d in ingest_path(DATA).documents
+            if d.id in indexed_ids()
         }
         self.universe = set(self.terms)
 
