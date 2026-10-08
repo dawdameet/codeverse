@@ -5,6 +5,7 @@ import { reportConnection } from "./connection";
 import { config } from "./config";
 import { MOCK_EVENT } from "./mock/state";
 import { ApiError } from "./api";
+import { clearSession } from "./session";
 
 export interface Live<T> {
   data: T | null;
@@ -41,6 +42,11 @@ export function useLive<T>(
           const err =
             e instanceof ApiError ? e : new ApiError("SERVER_ERROR", String(e));
           if (err.code === "UNREACHABLE") reportConnection(false);
+          if (err.code === "UNAUTHORIZED" && config.apiMode === "http") {
+            clearSession(); // token no longer valid (e.g. server data reset)
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+            window.location.href = "/login";
+          }
           setState((s) => ({ data: s.data, error: err, loading: false }));
         });
     run();

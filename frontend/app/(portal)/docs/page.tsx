@@ -228,6 +228,12 @@ export default function DocsPage() {
               your crew immediately.
             </p>
             <p>
+              <strong>Time bonus:</strong> teams that solve a challenge earlier earn extra points on
+              top of its base value. The bonus is relative to every team that solved that challenge,
+              so it is calculated once the event ends and added to the final leaderboard. Until then
+              the leaderboard shows base points.
+            </p>
+            <p>
               Total Phase 1 Loot Bounty:{" "}
               <strong className="text-gold font-mono text-base">
                 {CHALLENGES.reduce((n, c) => n + c.points, 0)} POINTS
@@ -248,7 +254,10 @@ export default function DocsPage() {
        └─ FIX[OB-002]: repair transaction lookup
             └─ FIX[OB-003]: restore query history stack`}</pre>
               <p className="!my-0 text-xs text-paper-dim">
-                Never bundle fixes for multiple bugs into a single commit.
+                Never bundle fixes for multiple bugs into a single commit. You may fix the bugs in any
+                order, but the commit message must name the bug it fixes, and a commit that repairs
+                more than one bug is rejected. You only change files under{" "}
+                <span className="code">src/obelisk/</span>; tests are never taken from your copy.
               </p>
             </div>
           </Section>
@@ -266,7 +275,9 @@ export default function DocsPage() {
 
           <Section id="cli" title="CLI Workflow">
             <p>
-              The Codeverse CLI handles authentication and patch transmission to the judging server.
+              The Codeverse CLI sends your latest commit to the judging server and prints the
+              result as <strong>PASSED / TOTAL</strong> tests. Run it from inside your OBELISK
+              repository, after signing in once with <span className="code">codeverse login</span>.
             </p>
             <div className="rounded-xl border border-white/10 bg-black/80 p-4 my-4 font-mono text-xs space-y-3">
               <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-2">
@@ -276,6 +287,10 @@ export default function DocsPage() {
               <div className="flex items-center justify-between gap-2">
                 <span>codeverse submit OB-001</span>
                 <CopyButton text="codeverse submit OB-001" label="COPY" />
+              </div>
+              <div className="flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
+                <span>codeverse status</span>
+                <CopyButton text="codeverse status" label="COPY" />
               </div>
             </div>
           </Section>
@@ -288,12 +303,12 @@ export default function DocsPage() {
               <li>
                 <strong className="text-white">API Gateway:</strong>{" "}
                 <span className="code font-mono">
-                  {config.apiMode === "http" ? config.apiBaseUrl : "MOCK MODE (Simulation Engine)"}
+                  {config.apiMode === "http" ? config.apiBaseUrl || "this server" : "mock data (not connected)"}
                 </span>
               </li>
               <li>
-                <strong className="text-white">Telemetry status:</strong> Displayed on the floating
-                top bar on all screens.
+                <strong className="text-white">Server status:</strong> shown in the footer of every
+                page.
               </li>
             </ul>
           </Section>

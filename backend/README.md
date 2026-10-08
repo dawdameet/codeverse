@@ -29,10 +29,17 @@ Environment (all optional): `CODEVERSE_HOST` (0.0.0.0), `CODEVERSE_PORT` (8080),
 `CODEVERSE_DATA` (backend/data), `CODEVERSE_ASSETS` (backend/judge_assets), `CODEVERSE_MAX_BONUS` (0.5),
 `CODEVERSE_COOLDOWN` (15 s between submissions per team).
 
-### Website
-The website calls relative `/api/...` URLs when `NEXT_PUBLIC_CODEVERSE_API=http` and no API URL is set.
-`frontend/next.config.ts` proxies `/api/*` to `CODEVERSE_BACKEND_URL` (default `http://127.0.0.1:8080`),
-so run `npm run build && npm start` in `frontend/` on the same laptop and browse to port 3000.
+### Website + participant CLI (one address for everything)
+```
+cd frontend
+echo "NEXT_PUBLIC_CODEVERSE_API=http" > .env.local      # build-time switch from mock data to the backend
+npm run build && npm start -- -p 3000
+```
+The website calls same-origin `/api/...`; `frontend/next.config.ts` proxies it to `CODEVERSE_BACKEND_URL`
+(default `http://127.0.0.1:8080`, i.e. the backend on the same laptop). Participants therefore need only
+**one address**, `http://<laptop-ip>:3000`, for both the website and the CLI:
+`python codeverse.py login --server <laptop-ip>:3000` (see `cli/README.md`). Fonts are bundled, nothing is
+fetched from the internet.
 
 ## During the event (over SSH)
 
@@ -68,5 +75,5 @@ Errors: `401` bad token, `403` event not live, `409` a submission is already in 
 ## Tests
 
 ```
-cd backend/tests && python3 -W ignore -m unittest test_backend     # ~2-3 min: runs real judging
+cd backend/tests && python3 -W ignore -m unittest test_backend test_cli_e2e   # ~5 min: runs real judging
 ```
