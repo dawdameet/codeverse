@@ -13,12 +13,21 @@ def hash_code(team_id: str, access_code: str) -> str:
     return hashlib.sha256(f"{team_id.upper()}:{access_code}".encode("utf-8")).hexdigest()
 
 
+ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I confusion
+
+
+def new_code(length: int = 6) -> str:
+    return "".join(secrets.choice(ALPHABET) for _ in range(length))
+
+
 def upsert_team(db: Database, team_id: str, team_name: str, access_code: str) -> None:
+    """Create or update a team. The plain code is kept only so organizers can reprint credentials."""
     team_id = team_id.strip().upper()
     db.conn().execute(
-        "INSERT INTO teams(team_id, team_name, code_hash) VALUES(?,?,?) "
-        "ON CONFLICT(team_id) DO UPDATE SET team_name=excluded.team_name, code_hash=excluded.code_hash",
-        (team_id, team_name.strip(), hash_code(team_id, access_code.strip())),
+        "INSERT INTO teams(team_id, team_name, code_hash, code_plain) VALUES(?,?,?,?) "
+        "ON CONFLICT(team_id) DO UPDATE SET team_name=excluded.team_name, "
+        "code_hash=excluded.code_hash, code_plain=excluded.code_plain",
+        (team_id, team_name.strip(), hash_code(team_id, access_code.strip()), access_code.strip()),
     )
 
 

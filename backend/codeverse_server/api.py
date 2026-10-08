@@ -6,9 +6,9 @@ import json
 import logging
 import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
-from . import auth, event
+from . import adminapi, auth, event
 from .service import ApiError, App
 
 log = logging.getLogger("codeverse.http")
@@ -35,7 +35,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Admin-Token")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.end_headers()
         self.wfile.write(body)
@@ -63,6 +63,22 @@ class Handler(BaseHTTPRequestHandler):
             raise ApiError(401, "UNAUTHORIZED", "missing or invalid token")
         return team
 
+    @property
+    def query(self) -> dict:
+        return dict(parse_qsl(urlparse(self.path).query))
+
+    def _admin(self) -> None:
+        adminapi.check(self.app, self.headers.get("X-Admin-Token", ""), self.client_address[0])
+
+    def _send_html(self, text: str) -> None:
+        body = text.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_OPTIONS(self):
         self._send(204, {})
 
@@ -75,7 +91,12 @@ class Handler(BaseHTTPRequestHandler):
     def _dispatch(self, method: str) -> None:
         path = urlparse(self.path).path.rstrip("/") or "/"
         try:
-            for verb, pattern, fn in ROUTES:
+            if method == "GET" and path == "/admin":
+                self._send_html(adminapi.UI_FILE.read_text(encoding="utf-8"))
+                return
+            if path.startswith("/api/admin"):
+                self._admin()
+            for verb, pattern, fn in ROUTES + ADMIN_ROUTES:
                 m = pattern.fullmatch(path)
                 if verb == method and m:
                     self._send(200, fn(self, *m.groups()))
@@ -133,6 +154,44 @@ ROUTES = [
     ("GET", re.compile(r"/api/submissions"), lambda h: h.app.submissions_for(h._team())),
     ("GET", re.compile(r"/api/submissions/(\d+)"),
      lambda h, sid: h.app.submission_for(h._team(), int(sid))),
+]
+
+
+def _a(fn):
+    """Adapt ``fn(app, ...)`` admin functions to route handlers."""
+    return lambda h, *g: fn(h.app, *g)
+
+
+def _ab(fn, convert=str):
+    """Admin handler taking (app, id, body)."""
+    return lambda h, ident: fn(h.app, convert(ident), h._body())
+
+
+ADMIN_ROUTES = [
+    ("GET", re.compile(r"/api/admin/overview"), _a(adminapi.overview)),
+    ("POST", re.compile(r"/api/admin/event"), lambda h: adminapi.event_action(h.app, h._body())),
+    ("POST", re.compile(r"/api/admin/announcement"), lambda h: adminapi.set_announcement(h.app, h._body())),
+    ("POST", re.compile(r"/api/admin/settings"), lambda h: adminapi.set_settings(h.app, h._body())),
+    ("POST", re.compile(r"/api/admin/backup"), _a(adminapi.create_backup)),
+    ("GET", re.compile(r"/api/admin/teams"), _a(adminapi.teams)),
+    ("POST", re.compile(r"/api/admin/teams"), lambda h: adminapi.create_team(h.app, h._body())),
+    ("POST", re.compile(r"/api/admin/teams/bulk"), lambda h: adminapi.bulk_teams(h.app, h._body())),
+    ("POST", re.compile(r"/api/admin/teams/([A-Za-z0-9-]+)"), _ab(adminapi.update_team)),
+    ("POST", re.compile(r"/api/admin/teams/([A-Za-z0-9-]+)/delete"), lambda h, t: adminapi.delete_team(h.app, t)),
+    ("GET", re.compile(r"/api/admin/submissions"), lambda h: adminapi.submissions(h.app, h.query)),
+    ("GET", re.compile(r"/api/admin/submissions/(\d+)"), lambda h, i: adminapi.submission_detail(h.app, int(i))),
+    ("POST", re.compile(r"/api/admin/submissions/(\d+)"), _ab(adminapi.submission_action, int)),
+    ("POST", re.compile(r"/api/admin/rejudge"), lambda h: adminapi.bulk_rejudge(h.app, h._body())),
+    ("POST", re.compile(r"/api/admin/grant"), lambda h: adminapi.grant_solve(h.app, h._body())),
+    ("GET", re.compile(r"/api/admin/leaderboard"), _a(adminapi.leaderboard)),
+    ("GET", re.compile(r"/api/admin/adjustments"), _a(adminapi.adjustments)),
+    ("POST", re.compile(r"/api/admin/adjustments"), lambda h: adminapi.add_adjustment(h.app, h._body())),
+    ("POST", re.compile(r"/api/admin/adjustments/(\d+)/delete"),
+     lambda h, i: adminapi.delete_adjustment(h.app, int(i))),
+    ("GET", re.compile(r"/api/admin/flags"), lambda h: adminapi.flags(h.app, h.query)),
+    ("POST", re.compile(r"/api/admin/flags"), lambda h: adminapi.create_flag(h.app, h._body())),
+    ("POST", re.compile(r"/api/admin/flags/(\d+)"), _ab(adminapi.update_flag, int)),
+    ("GET", re.compile(r"/api/admin/audit"), _a(adminapi.audit_log)),
 ]
 
 

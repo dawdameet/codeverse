@@ -80,6 +80,11 @@ export function Shell({ children }: { children: ReactNode }) {
       </header>
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+        {status.data?.announcement && (
+          <div role="status" className="mb-6 rounded-lg border border-gold/40 bg-gold/10 px-4 py-2.5 text-sm text-gold">
+            {status.data.announcement}
+          </div>
+        )}
         {server !== "connected" && (
           <div
             role="alert"

@@ -91,6 +91,7 @@ class Verdict:
     passed: int | None
     total: int | None
     reason: str | None = None
+    failed: list | None = None
 
 
 class Assets:
@@ -245,6 +246,7 @@ def judge(
         judged = _judged_set(assets, claimed, solved_bugs, set(results))
         passed = sum(1 for t in judged if results.get(t) == "pass")
         total = len(judged)
+        failed = sorted(t for t in judged if results.get(t) != "pass")
 
         # One bug = one patch: reject patches that also repair a different, unsolved bug.
         extra = [
@@ -254,9 +256,9 @@ def judge(
         ]
         claimed_fixed = all(results.get(t) == "pass" for t in assets.bug_tests(claimed))
         if extra and claimed_fixed:
-            return Verdict("REJECTED", passed, total, "MULTIPLE_FIXES")
+            return Verdict("REJECTED", passed, total, "MULTIPLE_FIXES", failed)
         ok = passed == total
-        return Verdict("ACCEPTED" if ok else "REJECTED", passed, total)
+        return Verdict("ACCEPTED" if ok else "REJECTED", passed, total, None, failed)
     finally:
         if ok or not cfg.keep_failed_jobs:
             _rmtree(job_dir)

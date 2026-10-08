@@ -74,6 +74,8 @@ export interface CompetitionStatus {
   endTime: string;
   /** Backend clock, used to correct for client clock drift. */
   serverTime: string;
+  /** Organizer message shown as a banner (empty when none). */
+  announcement?: string;
 }
 
 export interface Session {

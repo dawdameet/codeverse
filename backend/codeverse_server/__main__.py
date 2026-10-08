@@ -65,6 +65,9 @@ def serve(argv: list[str]) -> int:
     log.info("listening on %s:%d with %d workers", cfg.host, cfg.port, cfg.workers)
     for addr in lan_addresses():
         log.info("LAN address: http://%s:%d", addr, cfg.port)
+    from .adminapi import admin_token
+
+    log.info("admin panel: http://<this-machine>:%d/admin   token: %s", cfg.port, admin_token(app))
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS teams (
     team_id TEXT NOT NULL UNIQUE,
     team_name TEXT NOT NULL,
     code_hash TEXT NOT NULL,
-    disqualified INTEGER NOT NULL DEFAULT 0
+    disqualified INTEGER NOT NULL DEFAULT 0,
+    code_plain TEXT
 );
 CREATE TABLE IF NOT EXISTS tokens (
     token TEXT PRIMARY KEY,
@@ -34,7 +35,9 @@ CREATE TABLE IF NOT EXISTS submissions (
     created REAL NOT NULL,
     started REAL,
     finished REAL,
-    valid INTEGER NOT NULL DEFAULT 1
+    valid INTEGER NOT NULL DEFAULT 1,
+    detail TEXT,                     -- JSON: failing tests (judge output)
+    manual INTEGER NOT NULL DEFAULT 0  -- 1 = granted/overridden by an organizer
 );
 CREATE INDEX IF NOT EXISTS idx_sub_team ON submissions(team_pk, challenge);
 CREATE INDEX IF NOT EXISTS idx_sub_status ON submissions(status, id);
@@ -44,7 +47,22 @@ CREATE TABLE IF NOT EXISTS flags (
     submission_id INTEGER,
     kind TEXT NOT NULL,
     detail TEXT,
+    created REAL NOT NULL,
+    resolved INTEGER NOT NULL DEFAULT 0,
+    note TEXT
+);
+CREATE TABLE IF NOT EXISTS adjustments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_pk INTEGER NOT NULL REFERENCES teams(pk),
+    points INTEGER NOT NULL,
+    reason TEXT,
     created REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at REAL NOT NULL,
+    action TEXT NOT NULL,
+    detail TEXT
 );
 CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
@@ -71,7 +89,19 @@ class Database:
         return c
 
     def init(self) -> None:
-        self.conn().executescript(SCHEMA)
+        c = self.conn()
+        c.executescript(SCHEMA)
+        # upgrade databases created before these columns existed
+        for table, column, decl in (
+            ("teams", "code_plain", "TEXT"),
+            ("submissions", "detail", "TEXT"),
+            ("submissions", "manual", "INTEGER NOT NULL DEFAULT 0"),
+            ("flags", "resolved", "INTEGER NOT NULL DEFAULT 0"),
+            ("flags", "note", "TEXT"),
+        ):
+            have = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
+            if column not in have:
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
     @contextmanager
     def transaction(self):

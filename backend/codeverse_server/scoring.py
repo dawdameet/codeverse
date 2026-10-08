@@ -46,6 +46,10 @@ def leaderboard(db: Database, content: Content, max_bonus: float, include_bonus:
             if per:
                 for team, b in bonus_for_solvers(per, content.points(cid), max_bonus).items():
                     bonus[team] += b
+    adj = {
+        r["team_pk"]: r["total"]
+        for r in db.conn().execute("SELECT team_pk, SUM(points) AS total FROM adjustments GROUP BY team_pk")
+    }
     rows = []
     for t in teams:
         mine = {c: ts for c, ts in solves.get(t["pk"], {}).items() if c in content.ids()}
@@ -57,7 +61,8 @@ def leaderboard(db: Database, content: Content, max_bonus: float, include_bonus:
                 "teamName": t["team_name"],
                 "base": base,
                 "bonus": round(bonus[t["pk"]]),
-                "score": base + round(bonus[t["pk"]]),
+                "adjustment": adj.get(t["pk"], 0),
+                "score": base + round(bonus[t["pk"]]) + adj.get(t["pk"], 0),
                 "solvedCount": len(mine),
                 "lastSolve": max(mine.values()) if mine else float("inf"),
             }

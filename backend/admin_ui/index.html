@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codeverse Admin</title>
+<style>
+  :root { --bg:#0b0a0c; --panel:#131116; --panel2:#1b181f; --line:rgba(242,237,227,.12); --text:#f2ede3; --dim:#a39d92;
+          --red:#d9261f; --red2:#ff4a44; --ok:#34c28a; --amber:#e8a93a; --gold:#e0b250; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  header { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(11,10,12,.95); z-index:5; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; letter-spacing:.04em; } header h1 b { color:var(--red2); }
+  nav { display:flex; gap:4px; flex:1; flex-wrap:wrap; }
+  nav button { background:none; border:0; color:var(--dim); padding:7px 12px; border-radius:6px; cursor:pointer; font:inherit; font-weight:600; }
+  nav button:hover { color:var(--text); } nav button.on { background:rgba(255,255,255,.1); color:#fff; }
+  nav .badge { background:var(--red); color:#fff; border-radius:9px; padding:0 6px; font-size:11px; margin-left:5px; }
+  main { max-width:1200px; margin:0 auto; padding:20px; }
+  h2 { font-size:15px; margin:0 0 10px; } h3 { font-size:13px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; margin:0 0 8px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .grid { display:grid; gap:16px; } .g2 { grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); } .g4 { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px; } .stat b { display:block; font-size:24px; } .stat span { color:var(--dim); font-size:12px; }
+  table { width:100%; border-collapse:collapse; } th { text-align:left; color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:600; padding:8px 10px; border-bottom:1px solid var(--line); }
+  td { padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:middle; } tr:last-child td { border-bottom:0; } tbody tr:hover { background:rgba(255,255,255,.03); }
+  tr.clickable { cursor:pointer; } .num { text-align:right; font-variant-numeric:tabular-nums; } .dim { color:var(--dim); } .mono { font-family:ui-monospace,Menlo,Consolas,monospace; white-space:nowrap; }
+  button.b, a.b { background:var(--red); color:#fff; border:1px solid var(--red); border-radius:7px; padding:6px 12px; cursor:pointer; font:inherit; font-weight:600; text-decoration:none; display:inline-block; }
+  button.b:hover { background:#ee3a33; } button.g { background:transparent; border-color:rgba(242,237,227,.25); color:var(--text); } button.g:hover { background:rgba(255,255,255,.08); }
+  button.sm { padding:3px 8px; font-size:12px; } button.warn { background:transparent; border-color:var(--red); color:var(--red2); } button[disabled] { opacity:.5; cursor:wait; }
+  input, select, textarea { background:#0b0a0c; color:var(--text); border:1px solid rgba(242,237,227,.22); border-radius:7px; padding:6px 9px; font:inherit; } input:focus, select:focus, textarea:focus { outline:none; border-color:var(--red2); }
+  textarea { width:100%; min-height:90px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0; } .row label { color:var(--dim); font-size:12px; }
+  .pill { display:inline-block; padding:1px 9px; border-radius:99px; border:1px solid var(--line); font-size:12px; font-weight:600; }
+  .ACCEPTED,.ok { color:var(--ok); border-color:rgba(52,194,138,.4); } .REJECTED,.bad { color:var(--red2); border-color:rgba(255,74,68,.4); }
+  .QUEUED,.RUNNING,.warnc { color:var(--amber); border-color:rgba(232,169,58,.4); } .ERROR { color:var(--red2); }
+  pre { background:#0b0a0c; border:1px solid var(--line); border-left:3px solid var(--red); border-radius:7px; padding:10px; overflow:auto; max-height:360px; font-size:12px; margin:8px 0; }
+  .diff-add { color:#7ee2a8; } .diff-del { color:#ff8a85; } .diff-hunk { color:#8ab4ff; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:flex-start; justify-content:center; padding:30px 16px; overflow:auto; z-index:20; }
+  .modal.open { display:flex; } .modal .card { width:min(900px,100%); margin:0; }
+  #toast { position:fixed; bottom:18px; right:18px; background:var(--panel2); border:1px solid var(--line); padding:10px 14px; border-radius:8px; display:none; z-index:30; max-width:360px; }
+  #toast.err { border-color:var(--red); } #login { max-width:380px; margin:12vh auto; }
+  .hidden { display:none !important; } .secret { cursor:pointer; letter-spacing:.1em; } .scroll { overflow-x:auto; }
+  .tag { font-size:11px; padding:0 6px; border-radius:4px; background:rgba(255,255,255,.1); margin-left:6px; }
+</style>
+</head>
+<body>
+<div id="login" class="card hidden">
+  <h2>Codeverse Admin</h2>
+  <p class="dim">Enter the admin token printed when the server starts (also in <span class="mono">data/admin_token.txt</span>).</p>
+  <div class="row"><input id="tokenInput" type="password" placeholder="Admin token" style="flex:1"><button class="b" id="loginBtn">Sign in</button></div>
+  <div id="loginErr" class="bad" style="font-size:13px"></div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>CODE<b>VERSE</b> Admin</h1>
+    <nav id="tabs"></nav>
+    <span id="evPill" class="pill"></span>
+    <button class="b g sm" id="logout">Log out</button>
+  </header>
+  <main id="view"></main>
+</div>
+
+<div class="modal" id="modal"><div class="card" id="modalBody"></div></div>
+<div id="toast"></div>
+
+<script>
+const $ = (s, el=document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = t => t ? new Date(t*1000).toLocaleString([], {hour12:false}) : "-";
+const hms = t => t ? new Date(t*1000).toLocaleTimeString([], {hour12:false}) : "-";
+let token = sessionStorage.getItem("cv_admin") || "";
+let tab = location.hash.slice(1) || "overview";
+let timer = null, state = {};
+
+const TABS = [["overview","Overview"],["teams","Teams"],["submissions","Submissions"],["scores","Scores"],["flags","Flags"],["audit","Audit log"]];
+
+function toast(msg, err=false) {
+  const t = $("#toast"); t.textContent = msg; t.className = err ? "err" : ""; t.style.display = "block";
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = "none", err ? 6000 : 2800);
+}
+async function api(path, body) {
+  const opt = { headers: {"X-Admin-Token": token, "Content-Type": "application/json"} };
+  if (body !== undefined) { opt.method = "POST"; opt.body = JSON.stringify(body); }
+  let r;
+  try { r = await fetch("/api/admin" + path, opt); } catch (e) { throw new Error("Cannot reach the server"); }
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401 || r.status === 403 && data.error === "ADMIN_LOCAL_ONLY") { showLogin(data.message); throw new Error(data.message || "unauthorised"); }
+  if (!r.ok) throw new Error(data.message || data.error || ("HTTP " + r.status));
+  return data;
+}
+async function act(fn, okMsg) {
+  try { const r = await fn(); if (okMsg) toast(okMsg); return r; } catch (e) { toast(e.message, true); }
+}
+function showLogin(msg) {
+  sessionStorage.removeItem("cv_admin"); token = ""; clearInterval(timer);
+  $("#app").classList.add("hidden"); $("#login").classList.remove("hidden"); $("#loginErr").textContent = msg || "";
+}
+$("#loginBtn").onclick = async () => {
+  token = $("#tokenInput").value.trim();
+  try { await api("/overview"); sessionStorage.setItem("cv_admin", token); start(); }
+  catch (e) { $("#loginErr").textContent = e.message; }
+};
+$("#tokenInput").addEventListener("keydown", e => { if (e.key === "Enter") $("#loginBtn").click(); });
+$("#logout").onclick = () => showLogin();
+
+function start() {
+  $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
+  render();
+  clearInterval(timer);
+  timer = setInterval(() => { if (["overview","submissions"].includes(tab) && !$(".modal.open") && !document.activeElement.matches("input,textarea,select")) render(true); }, 5000);
+}
+function nav(t) { tab = t; location.hash = t; render(); }
+function drawTabs(ov) {
+  $("#tabs").innerHTML = TABS.map(([k, l]) => {
+    let b = ""; if (k === "flags" && ov && ov.counts.openFlags) b = `<span class="badge">${ov.counts.openFlags}</span>`;
+    return `<button class="${k===tab?"on":""}" data-t="${k}">${l}${b}</button>`;
+  }).join("");
+  $("#tabs").querySelectorAll("button").forEach(b => b.onclick = () => nav(b.dataset.t));
+  if (ov) { const e = ov.event; const p = $("#evPill"); p.textContent = `${e.status} · phase ${e.phase}`; p.className = "pill " + (e.status==="LIVE"?"ok":e.status==="PAUSED"?"warnc":"bad"); }
+}
+async function render(quiet) {
+  try {
+    const ov = await api("/overview"); state.ov = ov; drawTabs(ov);
+    const v = { overview: vOverview, teams: vTeams, submissions: vSubmissions, scores: vScores, flags: vFlags, audit: vAudit }[tab] || vOverview;
+    const html = await v(ov);
+    if (html !== undefined) $("#view").innerHTML = html;
+    bind();
+  } catch (e) { if (!quiet) toast(e.message, true); }
+}
+function modal(html) { $("#modalBody").innerHTML = html; $("#modal").classList.add("open"); }
+function closeModal() { $("#modal").classList.remove("open"); }
+$("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+const pill = s => `<span class="pill ${esc(s)}">${esc(s)}</span>`;
+const val = id => $("#" + id).value;
+
+/* ---------------- Overview ---------------- */
+async function vOverview(ov) {
+  const e = ov.event, c = ov.counts, q = ov.queue, s = ov.settings, st = c.byStatus;
+  const p = e.phases[e.phase-1];
+  return `
+  <div class="grid g4" style="margin-bottom:16px">
+    <div class="stat"><b>${c.teams}</b><span>teams (${c.disqualified} disqualified)</span></div>
+    <div class="stat"><b>${c.submissions}</b><span>submissions</span></div>
+    <div class="stat"><b>${(st.ACCEPTED||0)} / ${(st.REJECTED||0)}</b><span>accepted / rejected</span></div>
+    <div class="stat"><b class="${q.inFlight>8?"bad":""}">${q.inFlight}</b><span>in queue (oldest ${q.oldestSeconds}s, ${q.workers} workers)</span></div>
+    <div class="stat"><b class="${c.openFlags?"bad":""}">${c.openFlags}</b><span>open flags</span></div>
+    <div class="stat"><b class="${ov.judgeReady?"ok":"bad"}">${ov.judgeReady?"ready":"MISSING"}</b><span>judge assets</span></div>
+  </div>
+  <div class="grid g2">
+   <div class="card"><h2>Event</h2>
+    <p>${pill(e.status)} phase ${e.phase}: ${esc(p.name)} ${e.finalized?'<span class="tag">scores finalized</span>':""}</p>
+    <p class="dim">Phase ends: ${esc(new Date(p.endTime).toLocaleString([], {hour12:false}))}</p>
+    ${e.status==="NOT_STARTED"||e.status==="ENDED" ? `
+      <div class="row"><label>Phase 1 minutes</label><input id="p1" type="number" value="180" style="width:80px">
+      <label>Phase 2</label><input id="p2" type="number" value="90" style="width:80px"><button class="b" id="evStart">Start event</button></div>` : `
+      <div class="row">
+       ${e.status==="LIVE"?'<button class="b g" data-ev="pause">Pause</button>':'<button class="b" data-ev="resume">Resume</button>'}
+       <button class="b g" data-ev="phase2">Switch to phase 2</button><button class="b g" data-ev="phase1">Back to phase 1</button>
+       <button class="b warn" id="evEnd">End event</button></div>
+      <div class="row"><label>Add minutes to current phase</label><input id="ext" type="number" value="10" style="width:70px"><button class="b g sm" id="evExtend">Extend</button></div>`}
+    <div class="row">${e.finalized?'<button class="b g" data-ev="unfinalize">Hide time bonus (un-finalize)</button>':'<button class="b g" id="evFinal">Finalize scores (publish time bonus)</button>'}</div>
+   </div>
+   <div class="card"><h2>Announcement banner</h2>
+    <p class="dim">Shown at the top of the participant website.</p>
+    <div class="row"><input id="ann" value="${esc(e.announcement)}" placeholder="e.g. Phase 1 extended by 10 minutes" style="flex:1" maxlength="300">
+    <button class="b" id="annSave">Publish</button><button class="b g" id="annClear">Clear</button></div>
+    <h3 style="margin-top:18px">Settings</h3>
+    <div class="row"><label>Max time bonus</label><input id="mb" type="number" step="0.05" value="${s.maxBonus}" style="width:80px"><span class="dim">(0.5 = +50% for the fastest solver)</span></div>
+    <div class="row"><label>Cooldown between submissions (s)</label><input id="cd" type="number" value="${s.cooldownSeconds}" style="width:80px"><button class="b g" id="setSave">Save</button></div>
+   </div>
+  </div>
+  <div class="card"><h2>Backup</h2>
+    <div class="row"><button class="b g" id="bk">Create database backup now</button><span class="dim">Latest: ${ov.backups.length?esc(ov.backups[ov.backups.length-1]):"none yet"} (stored in data/backups)</span></div>
+  </div>`;
+}
+
+/* ---------------- Teams ---------------- */
+async function vTeams() {
+  const teams = await api("/teams"); state.teams = teams;
+  return `
+  <div class="grid g2">
+   <div class="card"><h2>Add a team</h2>
+    <div class="row"><input id="tn" placeholder="Team name" style="flex:1"><input id="ti" placeholder="ID (auto)" style="width:100px"><input id="tc" placeholder="Code (auto)" style="width:100px"><button class="b" id="tAdd">Add</button></div></div>
+   <div class="card"><h2>Bulk</h2>
+    <div class="row"><input id="bn" type="number" value="30" style="width:70px"><input id="bp" value="Team" style="width:110px"><button class="b" id="bGen">Generate teams</button></div>
+    <div class="row"><textarea id="bcsv" placeholder="Or paste lines:  Team name   |   CV-050,Team name   |   CV-050,Team name,CODE12"></textarea></div>
+    <div class="row"><button class="b g" id="bCsv">Import pasted lines</button></div></div>
+  </div>
+  <div class="card scroll"><div class="row" style="justify-content:space-between"><h2>${teams.length} teams</h2>
+    <div class="row"><button class="b g sm" id="credCsv">Download credentials (CSV)</button><button class="b g sm" id="credPrint">Print credential slips</button></div></div>
+   <table><thead><tr><th>Team</th><th>Name</th><th>Access code</th><th class="num">Rank</th><th class="num">Score</th><th class="num">Solved</th><th class="num">Subs</th><th>Flags</th><th></th></tr></thead><tbody>
+   ${teams.map(t => `<tr>
+     <td class="mono">${esc(t.teamId)}</td>
+     <td>${esc(t.teamName)}${t.disqualified?'<span class="tag bad">DQ</span>':""}</td>
+     <td class="mono secret" data-code="${esc(t.accessCode||"")}" title="click to reveal">••••••</td>
+     <td class="num">${t.rank ?? "-"}</td><td class="num">${t.score ?? "-"}</td><td class="num">${t.solved ?? "-"}</td><td class="num">${t.submissions}</td>
+     <td>${t.openFlags?`<span class="pill bad">${t.openFlags}</span>`:""}</td>
+     <td style="white-space:nowrap">
+       <button class="b g sm" data-tact="subs" data-t="${esc(t.teamId)}">Submissions</button>
+       <button class="b g sm" data-tact="rename" data-t="${esc(t.teamId)}">Rename</button>
+       <button class="b g sm" data-tact="reset" data-t="${esc(t.teamId)}">New code</button>
+       <button class="b g sm" data-tact="${t.disqualified?"restore":"dq"}" data-t="${esc(t.teamId)}">${t.disqualified?"Restore":"Disqualify"}</button>
+       <button class="b warn sm" data-tact="delete" data-t="${esc(t.teamId)}">Delete</button></td></tr>`).join("")}
+   </tbody></table></div>`;
+}
+function creds(list) { return "teamId,teamName,accessCode\n" + list.map(t => [t.teamId, `"${String(t.teamName).replace(/"/g,'""')}"`, t.accessCode].join(",")).join("\n") + "\n"; }
+function download(name, text) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type:"text/csv"})); a.download = name; a.click(); }
+function printSlips(list) {
+  const w = window.open("", "_blank");
+  w.document.write(`<title>Credentials</title><style>body{font:14px sans-serif}.s{display:inline-block;width:46%;margin:1.5%;padding:14px;border:1px dashed #555;border-radius:8px;page-break-inside:avoid}b{font-size:18px}code{font-size:20px}</style>` +
+    list.map(t => `<div class="s"><b>${esc(t.teamName)}</b><br>Team ID: <code>${esc(t.teamId)}</code><br>Access code: <code>${esc(t.accessCode)}</code></div>`).join(""));
+  w.document.close(); w.print();
+}
+
+/* ---------------- Submissions ---------------- */
+async function vSubmissions() {
+  const f = state.filter || {};
+  const qs = new URLSearchParams({limit: 150, ...Object.fromEntries(Object.entries(f).filter(([,v]) => v))}).toString();
+  const [data, teams] = await Promise.all([api("/submissions?" + qs), state.teams ? state.teams : api("/teams")]);
+  state.teams = teams;
+  const chs = ["OB-001","OB-002","OB-003","OB-004","OB-005","OB-006"];
+  return `
+  <div class="card"><div class="row">
+    <label>Team</label><select id="fTeam"><option value="">all</option>${teams.map(t=>`<option ${f.team===t.teamId?"selected":""} value="${esc(t.teamId)}">${esc(t.teamId)} ${esc(t.teamName)}</option>`).join("")}</select>
+    <label>Challenge</label><select id="fCh"><option value="">all</option>${chs.map(c=>`<option ${f.challenge===c?"selected":""}>${c}</option>`).join("")}</select>
+    <label>Status</label><select id="fSt"><option value="">all</option>${["QUEUED","RUNNING","ACCEPTED","REJECTED","ERROR"].map(c=>`<option ${f.status===c?"selected":""}>${c}</option>`).join("")}</select>
+    <button class="b g sm" id="fApply">Apply</button><span class="dim">${data.total} matching</span></div>
+    <div class="row"><label>Re-judge everything for</label><select id="rjCh"><option value="">all challenges</option>${chs.map(c=>`<option>${c}</option>`).join("")}</select>
+    <select id="rjSt"><option value="">any judged status</option><option>REJECTED</option><option>ACCEPTED</option><option>ERROR</option></select>
+    <button class="b g sm" id="rjGo">Re-judge</button><span class="dim">(after fixing a test or judge problem)</span></div>
+    <div class="row"><label>Grant solve</label><select id="gTeam">${teams.map(t=>`<option value="${esc(t.teamId)}">${esc(t.teamId)} ${esc(t.teamName)}</option>`).join("")}</select>
+    <select id="gCh">${chs.map(c=>`<option>${c}</option>`).join("")}</select><input id="gNote" placeholder="reason" style="width:180px"><button class="b g sm" id="gGo">Grant</button></div></div>
+  <div class="card scroll"><table><thead><tr><th>#</th><th>Time</th><th>Team</th><th>Challenge</th><th>Status</th><th class="num">Passed</th><th>Reason</th><th></th></tr></thead><tbody>
+  ${data.items.map(s => `<tr class="clickable" data-sub="${s.id}" style="${s.valid?"":"opacity:.5"}">
+    <td>${s.id}</td><td class="dim">${hms(s.created)}</td><td>${esc(s.teamId)} <span class="dim">${esc(s.teamName)}</span></td><td class="mono">${esc(s.challenge)}</td>
+    <td>${pill(s.status)}${s.manual?'<span class="tag">manual</span>':""}${s.valid?"":'<span class="tag bad">invalid</span>'}</td>
+    <td class="num">${s.total!=null?`${s.passed}/${s.total}`:"-"}</td><td class="dim">${esc(s.reason||"")}</td>
+    <td>${s.openFlags?`<span class="pill bad">flag</span>`:""}</td></tr>`).join("") || `<tr><td colspan="8" class="dim">No submissions.</td></tr>`}
+  </tbody></table></div>`;
+}
+function diffHtml(text) {
+  return esc(text).split("\n").map(l => l.startsWith("+") && !l.startsWith("+++") ? `<span class="diff-add">${l}</span>` :
+    l.startsWith("-") && !l.startsWith("---") ? `<span class="diff-del">${l}</span>` : l.startsWith("@@") ? `<span class="diff-hunk">${l}</span>` : l).join("\n");
+}
+async function openSub(id) {
+  const s = await act(() => api("/submissions/" + id)); if (!s) return;
+  modal(`<div class="row" style="justify-content:space-between"><h2>Submission #${s.id} · ${esc(s.teamId)} ${esc(s.teamName)} · ${esc(s.challenge)}</h2><button class="b g sm" onclick="closeModal()">Close</button></div>
+   <p>${pill(s.status)} ${s.total!=null?`passed <b>${s.passed}/${s.total}</b>`:""} ${s.reason?`· ${esc(s.reason)}`:""} ${s.manual?'<span class="tag">manual</span>':""} ${s.valid?"":'<span class="tag bad">invalid – does not score</span>'}</p>
+   <p class="dim">Received ${fmt(s.created)} · judged ${fmt(s.finished)} · sha ${esc((s.patch_sha||"").slice(0,12))}</p>
+   <div class="row">
+     ${s.patch?`<button class="b g sm" data-sa="rejudge" data-id="${s.id}">Re-judge</button>`:""}
+     ${s.valid?`<button class="b g sm" data-sa="invalidate" data-id="${s.id}">Invalidate (stop scoring)</button>`:`<button class="b g sm" data-sa="restore" data-id="${s.id}">Restore</button>`}
+     <button class="b g sm" data-sa="accept" data-id="${s.id}">Force accept</button><button class="b warn sm" data-sa="reject" data-id="${s.id}">Force reject</button>
+     <button class="b g sm" data-sa="flag" data-id="${s.id}" data-team="${esc(s.teamId)}">Flag…</button></div>
+   ${s.flags.length?`<h3>Flags</h3>${s.flags.map(f=>`<div>${pill(f.resolved?"ok":"bad").replace(/>.*?</, `>${esc(f.kind)}<`)} ${esc(f.detail)}</div>`).join("")}`:""}
+   ${s.failedTests.length?`<h3>Failing tests (${s.failedTests.length})</h3><pre>${esc(s.failedTests.join("\n"))}</pre>`:""}
+   <h3>Patch</h3><pre>${s.patch?diffHtml(s.patch):"(no stored patch – manually granted)"}</pre>`);
+}
+
+/* ---------------- Scores ---------------- */
+async function vScores() {
+  const [lb, adj, teams] = await Promise.all([api("/leaderboard"), api("/adjustments"), state.teams ? state.teams : api("/teams")]);
+  state.teams = teams; state.lb = lb;
+  return `
+  <div class="grid g2"><div class="card"><h2>Adjust a score</h2>
+    <p class="dim">Adds or deducts points on top of the computed score (shown to everyone immediately). To change what a team solved, use <b>Submissions</b> (invalidate / grant).</p>
+    <div class="row"><select id="aTeam">${teams.map(t=>`<option value="${esc(t.teamId)}">${esc(t.teamId)} ${esc(t.teamName)}</option>`).join("")}</select>
+    <input id="aPts" type="number" placeholder="+/- points" style="width:110px"><input id="aWhy" placeholder="reason" style="flex:1"><button class="b" id="aAdd">Apply</button></div></div>
+   <div class="card"><h2>Adjustments</h2>${adj.length?`<table><tbody>${adj.map(a=>`<tr><td>${esc(a.teamId)} ${esc(a.teamName)}</td><td class="num ${a.points<0?"bad":"ok"}">${a.points>0?"+":""}${a.points}</td><td class="dim">${esc(a.reason||"")}</td><td><button class="b warn sm" data-adel="${a.id}">Remove</button></td></tr>`).join("")}</tbody></table>`:'<p class="dim">None.</p>'}</div></div>
+  <div class="card scroll"><div class="row" style="justify-content:space-between"><h2>Scores ${lb.finalized?'<span class="tag">finalized – bonus visible to teams</span>':'<span class="tag warnc">bonus shown here is provisional</span>'}</h2><button class="b g sm" id="lbCsv">Export CSV</button></div>
+   <table><thead><tr><th>#</th><th>Team</th><th class="num">Solved</th><th class="num">Base</th><th class="num">Bonus</th><th class="num">Adj.</th><th class="num">Score</th>${lb.challenges.map(c=>`<th>${c.slice(3)}</th>`).join("")}</tr></thead><tbody>
+   ${lb.rows.map(r=>`<tr><td>${r.rank}</td><td>${esc(r.teamId)} <span class="dim">${esc(r.teamName)}</span></td><td class="num">${r.solved}</td><td class="num">${r.base}</td><td class="num">${r.bonus}</td><td class="num">${r.adjustment||""}</td><td class="num"><b>${r.score}</b></td>
+    ${lb.challenges.map(c=>`<td class="dim">${r.solves[c]?hms(r.solves[c]):""}</td>`).join("")}</tr>`).join("")}
+   </tbody></table></div>`;
+}
+
+/* ---------------- Flags ---------------- */
+async function vFlags() {
+  const showAll = state.allFlags;
+  const [fl, teams] = await Promise.all([api("/flags" + (showAll ? "" : "?resolved=0")), state.teams ? state.teams : api("/teams")]);
+  state.teams = teams;
+  return `
+  <div class="card"><h2>Add a manual flag</h2><div class="row"><select id="mfTeam">${teams.map(t=>`<option value="${esc(t.teamId)}">${esc(t.teamId)} ${esc(t.teamName)}</option>`).join("")}</select>
+    <input id="mfSub" placeholder="submission # (optional)" style="width:150px"><input id="mfDetail" placeholder="what did you observe?" style="flex:1"><button class="b" id="mfAdd">Flag</button></div></div>
+  <div class="card scroll"><div class="row" style="justify-content:space-between"><h2>${fl.length} ${showAll?"flags":"open flags"}</h2><label><input type="checkbox" id="allFl" ${showAll?"checked":""}> include resolved</label></div>
+   <p class="dim">Automatic flags: patches that touch forbidden paths, and identical non-trivial patches from different teams. Flags never change scores by themselves.</p>
+   <table><thead><tr><th>Time</th><th>Team</th><th>Kind</th><th>Detail</th><th>Submission</th><th>Note</th><th></th></tr></thead><tbody>
+   ${fl.map(f=>`<tr style="${f.resolved?"opacity:.55":""}"><td class="dim">${hms(f.created)}</td><td>${esc(f.teamId||"-")} <span class="dim">${esc(f.teamName||"")}</span></td><td>${pill(f.resolved?"ok":"bad").replace(/>.*?</, `>${esc(f.kind)}<`)}</td><td>${esc(f.detail)}</td>
+    <td>${f.submissionId?`<a href="#" data-sub="${f.submissionId}">#${f.submissionId}</a>`:""}</td><td>${esc(f.note||"")}</td>
+    <td style="white-space:nowrap"><button class="b g sm" data-fl="${f.id}" data-res="${f.resolved?0:1}">${f.resolved?"Reopen":"Resolve…"}</button></td></tr>`).join("") || `<tr><td colspan="7" class="dim">Nothing flagged.</td></tr>`}
+   </tbody></table></div>`;
+}
+
+/* ---------------- Audit ---------------- */
+async function vAudit() {
+  const rows = await api("/audit");
+  return `<div class="card scroll"><h2>Admin actions</h2><table><thead><tr><th>Time</th><th>Action</th><th>Detail</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td class="dim">${fmt(r.at)}</td><td class="mono">${esc(r.action)}</td><td>${esc(r.detail||"")}</td></tr>`).join("") || `<tr><td colspan="3" class="dim">Nothing yet.</td></tr>`}</tbody></table></div>`;
+}
+
+/* ---------------- wiring ---------------- */
+function bind() {
+  const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = e => { e.preventDefault(); fn(el, e); });
+  const re = () => render();
+  // overview
+  on("[data-ev]", el => act(() => api("/event", {action: el.dataset.ev === "phase2" ? "phase" : el.dataset.ev === "phase1" ? "phase" : el.dataset.ev, number: el.dataset.ev === "phase2" ? 2 : 1}), "Done").then(re));
+  const b = (id, fn) => { const el = $("#" + id); if (el) el.onclick = fn; };
+  b("evStart", () => act(() => api("/event", {action:"start", phase1Minutes:+val("p1"), phase2Minutes:+val("p2")}), "Event started").then(re));
+  b("evEnd", () => confirm("End the event? Submissions will close.") && act(() => api("/event", {action:"end"}), "Event ended").then(re));
+  b("evExtend", () => act(() => api("/event", {action:"extend", minutes:+val("ext")}), "Phase extended").then(re));
+  b("evFinal", () => confirm("Publish final scores including the time bonus to all teams?") && act(() => api("/event", {action:"finalize"}), "Scores finalized").then(re));
+  b("annSave", () => act(() => api("/announcement", {text: val("ann")}), "Announcement published").then(re));
+  b("annClear", () => act(() => api("/announcement", {text: ""}), "Announcement cleared").then(re));
+  b("setSave", () => act(() => api("/settings", {maxBonus:+val("mb"), cooldownSeconds:+val("cd")}), "Settings saved").then(re));
+  b("bk", () => act(() => api("/backup", {}), "Backup created").then(re));
+  // teams
+  b("tAdd", () => act(() => api("/teams", {teamName: val("tn"), teamId: val("ti"), accessCode: val("tc")}), "Team created").then(re));
+  b("bGen", () => act(() => api("/teams/bulk", {count:+val("bn"), namePrefix: val("bp")}), "Teams generated").then(r => { re(); if (r) toast(r.length + " teams created – download the credentials below"); }));
+  b("bCsv", () => act(() => api("/teams/bulk", {csv: val("bcsv")}), "Imported").then(re));
+  b("credCsv", () => download("credentials.csv", creds(state.teams.filter(t => !t.disqualified))));
+  b("credPrint", () => printSlips(state.teams.filter(t => !t.disqualified)));
+  document.querySelectorAll(".secret").forEach(el => el.onclick = () => { el.textContent = el.textContent === "••••••" ? el.dataset.code : "••••••"; });
+  on("[data-tact]", async el => {
+    const t = el.dataset.t, a = el.dataset.tact, base = "/teams/" + encodeURIComponent(t);
+    if (a === "subs") { state.filter = {team: t}; nav("submissions"); return; }
+    if (a === "rename") { const n = prompt("New team name for " + t, state.teams.find(x => x.teamId === t).teamName); if (n) await act(() => api(base, {teamName: n}), "Renamed"); }
+    if (a === "reset") { if (confirm("Generate a new access code for " + t + "? They will be signed out.")) { const r = await act(() => api(base, {resetCode: true})); if (r) alert("New access code for " + t + ": " + r.newAccessCode); } }
+    if (a === "dq") { if (confirm("Disqualify " + t + "? They will be removed from the leaderboard and signed out.")) await act(() => api(base, {disqualified: true}), "Disqualified"); }
+    if (a === "restore") await act(() => api(base, {disqualified: false}), "Restored");
+    if (a === "delete") { if (confirm("Delete " + t + "? Only possible if it has no submissions.")) await act(() => api(base + "/delete", {}), "Deleted"); }
+    re();
+  });
+  // submissions
+  on("[data-sub]", el => openSub(+el.dataset.sub));
+  b("fApply", () => { state.filter = {team: val("fTeam"), challenge: val("fCh"), status: val("fSt")}; re(); });
+  b("rjGo", () => confirm("Re-queue matching judged submissions?") && act(() => api("/rejudge", {challenge: val("rjCh"), status: val("rjSt")})).then(r => { if (r) toast(r.requeued + " submissions re-queued"); re(); }));
+  b("gGo", () => confirm("Grant this solve? It scores as if solved now.") && act(() => api("/grant", {teamId: val("gTeam"), challenge: val("gCh"), note: val("gNote")}), "Solve granted").then(re));
+  // scores
+  b("aAdd", () => act(() => api("/adjustments", {teamId: val("aTeam"), points: val("aPts"), reason: val("aWhy")}), "Adjustment applied").then(re));
+  on("[data-adel]", el => act(() => api("/adjustments/" + el.dataset.adel + "/delete", {}), "Removed").then(re));
+  b("lbCsv", () => { const lb = state.lb; download("results.csv", "rank,teamId,teamName,solved,base,bonus,adjustment,score\n" + lb.rows.map(r => [r.rank, r.teamId, `"${r.teamName.replace(/"/g,'""')}"`, r.solved, r.base, r.bonus, r.adjustment, r.score].join(",")).join("\n") + "\n"); });
+  // flags
+  b("mfAdd", () => act(() => api("/flags", {teamId: val("mfTeam"), submissionId: val("mfSub") ? +val("mfSub") : null, detail: val("mfDetail")}), "Flag added").then(re));
+  const all = $("#allFl"); if (all) all.onchange = () => { state.allFlags = all.checked; re(); };
+  on("[data-fl]", el => { const resolving = el.dataset.res === "1"; const note = resolving ? prompt("Resolution note (optional)") : null; if (resolving && note === null) return;
+    act(() => api("/flags/" + el.dataset.fl, {resolved: resolving, note}), "Updated").then(re); });
+}
+// submission modal actions (modal content is added after bind())
+$("#modalBody").addEventListener("click", async e => {
+  const el = e.target.closest("[data-sa]"); if (!el) return;
+  const id = +el.dataset.id, a = el.dataset.sa;
+  if (a === "flag") { const d = prompt("Flag note for " + el.dataset.team); if (!d) return; await act(() => api("/flags", {teamId: el.dataset.team, submissionId: id, detail: d}), "Flagged"); openSub(id); return; }
+  if ((a === "accept" || a === "reject") && !confirm("Force " + a + " this submission? This overrides the judge.")) return;
+  await act(() => api("/submissions/" + id, {action: a}), "Done"); openSub(id); render(true);
+});
+
+if (token) { api("/overview").then(start).catch(() => showLogin()); } else showLogin();
+</script>
+</body>
+</html>

@@ -54,6 +54,11 @@ Team (Bearer token): `GET /api/me`, `GET /api/challenges`, `GET /api/challenges/
 ## Database (SQLite)
 `teams`, `tokens`, `submissions`, `flags`, `kv` (event state). See `db.py`.
 
+## Admin panel
+A single-page web UI at `/admin` (backend port) backed by `/api/admin/*`, authenticated with an admin token
+(`X-Admin-Token`). Covers team management, submission inspection/overrides, score adjustments, flags, event
+control, announcements and an audit log. Everything it does is also recorded in the `audit` table.
+
 ## Admin CLI (`python -m codeverse_server admin ...`)
 `init`, `import-teams`, `start`, `pause`, `resume`, `end`, `status`, `queue`, `submissions`, `rejudge`,
 `invalidate`, `disqualify`, `leaderboard`, `finalize`, `export`, `flags`.

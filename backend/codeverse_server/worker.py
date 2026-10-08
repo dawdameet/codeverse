@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
@@ -30,18 +31,19 @@ def process(app: App, row) -> None:
     try:
         accepted = app.db.conn().execute(
             "SELECT patch_file FROM submissions WHERE team_pk=? AND status='ACCEPTED' AND valid=1 "
-            "AND id<>? ORDER BY id",
+            "AND manual=0 AND patch_file IS NOT NULL AND id<>? ORDER BY id",
             (team_pk, sub_id),
         ).fetchall()
         patches_text = [app.read_patch(r["patch_file"]) for r in accepted]
-        solved = app.solved_by(team_pk)
+        solved = app.solved_by(team_pk, judged_only=True)
         new_patch = app.read_patch(row["patch_file"])
         gate = app.gate.exclusive() if bug in app.cfg.exclusive_challenges else app.gate.shared()
         with gate:
             verdict = judge.judge(app.cfg, app.assets, sub_id, bug, new_patch, patches_text, solved)
         app.db.conn().execute(
-            "UPDATE submissions SET status=?, passed=?, total=?, reason=?, finished=? WHERE id=?",
-            (verdict.status, verdict.passed, verdict.total, verdict.reason, now(), sub_id),
+            "UPDATE submissions SET status=?, passed=?, total=?, reason=?, detail=?, finished=? WHERE id=?",
+            (verdict.status, verdict.passed, verdict.total, verdict.reason,
+             json.dumps({"failed": (verdict.failed or [])[:80]}), now(), sub_id),
         )
         log.info("submission %s (%s) -> %s %s/%s %s", sub_id, bug, verdict.status,
                  verdict.passed, verdict.total, verdict.reason or "")

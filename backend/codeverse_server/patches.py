@@ -27,6 +27,17 @@ def _split_paths(rest: str) -> tuple[str, str]:
     return m.group(1), m.group(2)
 
 
+def fingerprint(text: str) -> tuple[str, int]:
+    """Hash of the diff body only (not commit hash/author/date) and its number of changed lines."""
+    import hashlib
+
+    lines = text.splitlines()
+    start = next((i for i, l in enumerate(lines) if DIFF_LINE.match(l)), len(lines))
+    body = [l.rstrip() for l in lines[start:] if not l.startswith(("index ", "--- ", "+++ "))]
+    changed = sum(1 for l in body if l[:1] in "+-" and not l.startswith(("+++", "---")))
+    return hashlib.sha256("\n".join(body).encode("utf-8", "replace")).hexdigest(), changed
+
+
 def validate(text: str, claimed: str, allowed_prefix: str, max_bytes: int) -> list[str]:
     """Check label and touched paths. Returns the touched paths or raises PatchError."""
     if len(text.encode("utf-8", "replace")) > max_bytes:

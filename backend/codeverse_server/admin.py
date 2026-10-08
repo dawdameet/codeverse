@@ -71,6 +71,12 @@ def cmd_phase(app: App, a) -> int:
     return 0
 
 
+def cmd_token(app: App, a) -> int:
+    from .adminapi import admin_token
+    print(admin_token(app))
+    return 0
+
+
 def cmd_status(app: App, a) -> int:
     s = app.status()
     n, age = app.queue_depth()
@@ -138,7 +144,7 @@ def cmd_leaderboard(app: App, a) -> int:
 
 def _provisional(app: App) -> list[dict]:
     from . import scoring
-    return scoring.leaderboard(app.db, app.content, app.cfg.max_bonus, True)
+    return scoring.leaderboard(app.db, app.content, app.max_bonus(), True)
 
 
 def cmd_finalize(app: App, a) -> int:
@@ -152,7 +158,7 @@ def cmd_finalize(app: App, a) -> int:
 
 def cmd_export(app: App, a) -> int:
     from . import scoring
-    rows = scoring.leaderboard(app.db, app.content, app.cfg.max_bonus, True)
+    rows = scoring.leaderboard(app.db, app.content, app.max_bonus(), True)
     solves = scoring.solve_times(app.db)
     ids = app.content.ids()
     with open(a.out, "w", encoding="utf-8", newline="") as fh:
@@ -202,6 +208,7 @@ def build_parser() -> argparse.ArgumentParser:
     add("end", cmd_simple(event.end, "event ENDED"), "end the event")
     sp = add("phase", cmd_phase, "switch the active phase")
     sp.add_argument("number", type=int, choices=[1, 2])
+    add("token", cmd_token, "print the admin-panel token")
     add("status", cmd_status, "event and queue status")
     add("queue", cmd_queue, "show in-flight submissions")
     sp = add("submissions", cmd_submissions, "recent submissions")

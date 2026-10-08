@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import sqlite3
 import threading
 from pathlib import Path
@@ -41,8 +40,20 @@ class App:
     def finalized(self) -> bool:
         return self.db.kv_get("finalized", "0") == "1"
 
+    # runtime settings live in the database so the admin panel can change them without a restart
+    def max_bonus(self) -> float:
+        return float(self.db.kv_get("max_bonus", str(self.cfg.max_bonus)))
+
+    def cooldown(self) -> float:
+        return float(self.db.kv_get("cooldown", str(self.cfg.cooldown_seconds)))
+
+    def audit(self, action: str, detail: str = "") -> None:
+        self.db.conn().execute(
+            "INSERT INTO audit(at, action, detail) VALUES(?,?,?)", (now(), action, detail[:500])
+        )
+
     def board(self) -> list[dict]:
-        return scoring.leaderboard(self.db, self.content, self.cfg.max_bonus, self.finalized())
+        return scoring.leaderboard(self.db, self.content, self.max_bonus(), self.finalized())
 
     def leaderboard(self) -> list[dict]:
         return [
@@ -83,6 +94,7 @@ class App:
             "startTime": phs[0]["startTime"],
             "endTime": active["endTime"],
             "serverTime": event.iso(now()),
+            "announcement": self.db.kv_get("announcement", "") or "",
         }
 
     def challenge_view(self, team: sqlite3.Row, base: dict) -> dict:
@@ -101,9 +113,12 @@ class App:
 
     # --- submissions -------------------------------------------------------
 
-    def solved_by(self, team_pk: int) -> set[str]:
+    def solved_by(self, team_pk: int, judged_only: bool = False) -> set[str]:
+        """Challenges the team has solved. ``judged_only`` skips solves granted by an organizer
+        (their patch is not in the team's tree, so their tests must not be required)."""
         rows = self.db.conn().execute(
-            "SELECT DISTINCT challenge FROM submissions WHERE team_pk=? AND status='ACCEPTED' AND valid=1",
+            "SELECT DISTINCT challenge FROM submissions WHERE team_pk=? AND status='ACCEPTED' AND valid=1"
+            + (" AND manual=0" if judged_only else ""),
             (team_pk,),
         ).fetchall()
         return {r["challenge"] for r in rows}
@@ -137,7 +152,7 @@ class App:
             last = c.execute(
                 "SELECT MAX(created) AS t FROM submissions WHERE team_pk=?", (team["pk"],)
             ).fetchone()["t"]
-            wait = self.cfg.cooldown_seconds - (now() - last) if last else 0
+            wait = self.cooldown() - (now() - last) if last else 0
             if wait > 0:
                 raise ApiError(429, "COOLDOWN", "submitting too quickly", retryAfter=round(wait, 1))
             cur = c.execute(
@@ -147,7 +162,7 @@ class App:
             sub_id = cur.lastrowid
 
             reason = None
-            sha = hashlib.sha256(patch_text.encode("utf-8")).hexdigest()
+            sha, changed = patches.fingerprint(patch_text) if isinstance(patch_text, str) else ("", 0)
             if challenge in self.solved_by(team["pk"]):
                 reason = "ALREADY_SOLVED"
             else:
@@ -157,6 +172,14 @@ class App:
                     reason = exc.reason
                     if exc.reason == "FORBIDDEN_PATH":
                         self.flag(team["pk"], sub_id, "FORBIDDEN_PATH", exc.detail)
+            if changed >= 8:  # tiny one-line fixes are legitimately identical across teams
+                twin = c.execute(
+                    "SELECT s.id, t.team_id FROM submissions s JOIN teams t ON t.pk=s.team_pk "
+                    "WHERE s.patch_sha=? AND s.team_pk<>? ORDER BY s.id LIMIT 1", (sha, team["pk"])
+                ).fetchone()
+                if twin:
+                    self.flag(team["pk"], sub_id, "DUPLICATE_PATCH",
+                              f"identical to submission #{twin['id']} from {twin['team_id']}")
             if reason:
                 c.execute(
                     "UPDATE submissions SET status='REJECTED', reason=?, patch_sha=?, finished=? WHERE id=?",

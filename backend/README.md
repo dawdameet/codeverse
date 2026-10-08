@@ -50,6 +50,26 @@ The website calls same-origin `/api/...`; `frontend/next.config.ts` proxies it t
 `python codeverse.py login --server <laptop-ip>:3000` (see `cli/README.md`). Fonts are bundled, nothing is
 fetched from the internet.
 
+## Admin panel (web)
+
+Open `http://<laptop-ip>:8080/admin` (the backend port, not the website port) and sign in with the admin token.
+The token is printed when the server starts, kept in `backend/data/admin_token.txt`, and shown by
+`python3 -m codeverse_server admin token`. Set `CODEVERSE_ADMIN_TOKEN` to choose your own, and
+`CODEVERSE_ADMIN_LOCAL_ONLY=1` to allow the panel only from the server itself (then use
+`ssh -L 8080:localhost:8080 <laptop>` and browse `http://localhost:8080/admin`).
+
+| Tab | What you can do |
+|---|---|
+| Overview | start / pause / resume / end the event, switch phase, extend time, finalize scores (publish the time bonus), announcement banner shown on every participant page, max bonus and submission cooldown, queue health, database backup |
+| Teams | create one team, generate N teams, paste a list, rename, new access code (signs the team out), disqualify / restore, delete (only without submissions), reveal codes, download credentials CSV, print credential slips |
+| Submissions | filter by team / challenge / status; open any submission to see the patch diff, the **exact failing tests**, flags; re-judge, invalidate (stops scoring), force accept / reject, grant a solve manually, bulk re-judge a challenge |
+| Scores | add or remove point adjustments (+/-, with a reason, visible to teams immediately); full score breakdown (base, bonus, adjustment, per-challenge solve times); export CSV |
+| Flags | automatic flags (forbidden file paths, identical non-trivial patches from different teams) plus manual flags; resolve with a note |
+| Audit log | every action taken in the panel |
+
+Scores are always *derived*: a team's solves come from accepted, valid submissions, plus adjustments. So to "change
+a score", invalidate/restore a submission, grant a solve, or add an adjustment; all are logged.
+
 ## During the event (over SSH)
 
 ```
