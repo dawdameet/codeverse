@@ -185,7 +185,7 @@ python codeverse.py submit OB-003                 # from inside their OBELISK fo
 ### 6.2 Start of event
 1. Servers running (section 3). Admin panel signed in.
 2. Overview > **Start event** (Phase 1 = games, default 60 min; Phase 2 = OBELISK, default 180 min) - or `admin start --phase1-minutes 60 --phase2-minutes 180`. The event opens in **Phase 1**: participants play the five games; the OBELISK challenges are locked on the website and CLI submissions are refused (`PHASE_NOT_OPEN`).
-   **Phase 2 opens automatically when the Phase 1 timer runs out** (or press Overview > "Open phase 2 (OBELISK) now", or `admin phase 2`): the challenges appear, submissions are accepted, official game runs close, and the countdown switches to the Phase 2 clock. A team that finishes all five games earlier gets OBELISK straight away.
+   **Phase 2 never starts by itself.** When the games round is over, press Overview > "Open phase 2 (OBELISK)" (or `admin phase 2`): the challenges appear, submissions are accepted, official game runs close, and the countdown switches to the Phase 2 clock. If the Phase 1 timer runs out first, games close for new runs but everything stays in Phase 1 until you press the button (use *Extend* to give more time).
 3. Optionally publish an **announcement** ("Phase 1 is live - good luck", later "Phase 2 is open: OBELISK repos at the ready").
 4. Watch Overview: queue depth, open flags.
 
@@ -281,9 +281,8 @@ Logic Lockpick (intermediate), Bug Hunt Terminal (hard). The games run in the br
   Easy 1, Medium 2, Intermediate 3, Hard 4 (max 1200). Weights live in `registry.ts`.
 - **Phase rules:** official runs only work while the event is LIVE in **Phase 1** (a run still in progress when Phase 1 closes
   may report up to 2 minutes late); after that they close (practice stays open).
-- **OBELISK unlock:** a team sees the OBELISK challenges (and may submit) as soon as it has **finished all five games**, even while
-  others are still in Phase 1. For everyone else Phase 2 opens **automatically when the Phase 1 timer runs out** (or when you press
-  *Open phase 2 now*). Pausing stops the timer. *Back to phase 1* re-opens the games for at least 10 minutes.
+- **OBELISK unlock:** manual only. The event runs Phase 1 (games) first; OBELISK stays locked for every team, even ones that finished all five
+  games, until you press *Open phase 2 (OBELISK)*. Pausing stops the timer. *Back to phase 1* re-opens the games for at least 10 minutes.
 - **Where results live:** in the backend database (`game_results`), one official result per game per team, so every laptop of a
   team sees the same progress. If the network drops, the result waits in that browser and is re-sent automatically.
   Admin panel > **Games** shows every team's results live; **Teams** shows games played / games points / OBELISK locked or open.

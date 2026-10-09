@@ -40,11 +40,19 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _read_raw(self) -> bytes:
+        """Read the request body exactly once. Handlers that ignore it must still consume it, or the
+        leftover bytes corrupt the next request on this keep-alive connection."""
+        if getattr(self, "_raw", None) is None:
+            length = int(self.headers.get("Content-Length") or 0)
+            if length > MAX_BODY:
+                self.close_connection = True
+                raise ApiError(413, "TOO_LARGE", "request body too large")
+            self._raw = self.rfile.read(length) if length else b""
+        return self._raw
+
     def _body(self) -> dict:
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_BODY:
-            raise ApiError(413, "TOO_LARGE", "request body too large")
-        raw = self.rfile.read(length) if length else b""
+        raw = self._read_raw()
         if not raw:
             return {}
         try:
@@ -92,7 +100,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def _dispatch(self, method: str) -> None:
         path = urlparse(self.path).path.rstrip("/") or "/"
+        self._raw = None
         try:
+            if method == "POST":
+                self._read_raw()
             if method == "GET" and path == "/admin":
                 self._send_html(adminapi.UI_FILE.read_text(encoding="utf-8"))
                 return

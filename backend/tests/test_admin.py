@@ -120,6 +120,34 @@ class Teams(AdminCase):
         self.assertEqual(rows["CV-002"]["accessCode"], "code2")
 
 
+class PanelRegressions(AdminCase):
+    def test_admin_script_has_valid_javascript(self):
+        import re, shutil, subprocess, tempfile
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node not installed")
+        html = (Path(__file__).resolve().parent.parent / "admin_ui" / "index.html").read_text(encoding="utf-8")
+        js = re.search(r"<script>(.*)</script>", html, re.S).group(1)
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "admin.js"
+            f.write_text(js, encoding="utf-8")
+            r = subprocess.run([node, "--check", str(f)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_post_without_reading_body_does_not_break_the_connection(self):
+        import http.client
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_address[1])
+        hdr = {"X-Admin-Token": TOKEN, "Content-Type": "application/json"}
+        for _ in range(3):  # backup ignores its body; the next request on the same connection must still work
+            conn.request("POST", "/api/admin/backup", body="{}", headers=hdr)
+            r = conn.getresponse(); r.read()
+            self.assertEqual(r.status, 200)
+            conn.request("GET", "/api/admin/overview", headers=hdr)
+            r = conn.getresponse(); r.read()
+            self.assertEqual(r.status, 200)
+        conn.close()
+
+
 class EventControl(AdminCase):
     def test_event_controls_announcement_and_settings(self):
         self.assertEqual(self.A("/overview")["event"]["status"], "LIVE")

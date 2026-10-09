@@ -155,7 +155,7 @@ export const mockApi: CodeverseApi = {
       totalTeams: RIVALS.length + 1,
       solvedCount: me.solvedCount,
       ...games,
-      obeliskOpen: readMockState().phase === 2 || games.gamesPlayed === games.gamesTotal,
+      obeliskOpen: readMockState().phase === 2,
     };
   },
 

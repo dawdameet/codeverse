@@ -161,14 +161,13 @@ async function vOverview(ov) {
   <div class="grid g2">
    <div class="card"><h2>Event</h2>
     <p>${pill(e.status)} phase ${e.phase}: ${esc(p.name)} ${e.finalized?'<span class="tag">scores finalized</span>':""}</p>
-    <p class="dim">Phase ends: ${esc(new Date(p.endTime).toLocaleString([], {hour12:false}))}${e.phase===1&&e.status!=="ENDED"?" · OBELISK then opens automatically (teams that finish all games get it earlier)":""}</p>
+    <p class="dim">Phase ends: ${esc(new Date(p.endTime).toLocaleString([], {hour12:false}))}${e.phase===1&&e.status!=="ENDED"?" · then open phase 2 (OBELISK) yourself":""}</p>
     ${e.status==="NOT_STARTED"||e.status==="ENDED" ? `
       <div class="row"><label>Phase 1 minutes (games)</label><input id="p1" type="number" value="60" style="width:80px">
-      <label>Phase 2 (OBELISK)</label><input id="p2" type="number" value="180" style="width:80px"><button class="b" id="evStart">Start event</button>
-      <button class="b g" id="evStartObelisk" title="Skips the games: the OBELISK challenges open immediately for every team">Start challenges directly (skip games)</button></div>` : `
+      <label>Phase 2 (OBELISK)</label><input id="p2" type="number" value="180" style="width:80px"><button class="b" id="evStart">Start event</button></div>` : `
       <div class="row">
        ${e.status==="LIVE"?'<button class="b g" data-ev="pause">Pause</button>':'<button class="b" data-ev="resume">Resume</button>'}
-       <button class="b g" data-ev="phase2" title="Opens automatically when the phase 1 timer runs out">Start challenges now (open phase 2)</button><button class="b g" data-ev="phase1">Back to phase 1 (games)</button>
+       <button class="b g" data-ev="phase2" title="Reveals the OBELISK challenges to every team and closes the games">Open phase 2 (OBELISK)</button><button class="b g" data-ev="phase1">Back to phase 1 (games)</button>
        <button class="b warn" id="evEnd">End event</button></div>
       <div class="row"><label>Add minutes to current phase</label><input id="ext" type="number" value="10" style="width:70px"><button class="b g sm" id="evExtend">Extend</button></div>`}
     <div class="row">${e.finalized?'<button class="b g" data-ev="unfinalize">Hide time bonus (un-finalize)</button>':'<button class="b g" id="evFinal">Finalize scores (publish time bonus)</button>'}</div>
@@ -182,9 +181,22 @@ async function vOverview(ov) {
     <div class="row"><label>Cooldown between submissions (s)</label><input id="cd" type="number" value="${s.cooldownSeconds}" style="width:80px"><button class="b g" id="setSave">Save</button></div>
    </div>
   </div>
+  ${phase1Card(ov)}
   <div class="card"><h2>Backup</h2>
     <div class="row"><button class="b g" id="bk">Create database backup now</button><span class="dim">Latest: ${ov.backups.length?esc(ov.backups[ov.backups.length-1]):"none yet"} (stored in data/backups)</span></div>
   </div>`;
+}
+
+function phase1Card(ov) {
+  const p = ov.phase1;
+  return `<div class="card scroll"><h2>Phase 1 · games <span class="dim" style="font-weight:400">(live from the backend)</span></h2>
+   <div class="grid g2"><div>
+    <table><thead><tr><th>Game</th><th class="num">Weight</th><th class="num">Finished</th><th class="num">Playing now</th><th class="num">Avg %</th><th class="num">Abandoned</th></tr></thead><tbody>
+    ${p.games.map(g => `<tr><td>${esc(GAME_NAMES[g.game]||g.game)}</td><td class="num">x${g.weight}</td><td class="num">${g.finished} / ${p.activeTeams}</td><td class="num">${g.running||""}</td><td class="num">${g.avgPercent==null?"-":g.avgPercent+"%"}</td><td class="num">${g.forfeited||""}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div><h3>Top teams (games points, max ${p.maxTotal})</h3>
+    ${p.top.length ? `<table><tbody>${p.top.map((t,i) => `<tr><td>${i+1}</td><td>${esc(t.teamId)} <span class="dim">${esc(t.teamName)}</span></td><td class="num">${t.played}/5</td><td class="num"><b>${t.score}</b></td></tr>`).join("")}</tbody></table>` : '<p class="dim">No game results yet.</p>'}
+    </div></div></div>`;
 }
 
 /* ---------------- Teams ---------------- */
@@ -295,8 +307,8 @@ async function vScores() {
     <input id="aPts" type="number" placeholder="+/- points" style="width:110px"><input id="aWhy" placeholder="reason" style="flex:1"><button class="b" id="aAdd">Apply</button></div></div>
    <div class="card"><h2>Adjustments</h2>${adj.length?`<table><tbody>${adj.map(a=>`<tr><td>${esc(a.teamId)} ${esc(a.teamName)}</td><td class="num ${a.points<0?"bad":"ok"}">${a.points>0?"+":""}${a.points}</td><td class="dim">${esc(a.reason||"")}</td><td><button class="b warn sm" data-adel="${a.id}">Remove</button></td></tr>`).join("")}</tbody></table>`:'<p class="dim">None.</p>'}</div></div>
   <div class="card scroll"><div class="row" style="justify-content:space-between"><h2>Scores ${lb.finalized?'<span class="tag">finalized – bonus visible to teams</span>':'<span class="tag warnc">bonus shown here is provisional</span>'}</h2><button class="b g sm" id="lbCsv">Export CSV</button></div>
-   <table><thead><tr><th>#</th><th>Team</th><th class="num">Solved</th><th class="num">Base</th><th class="num">Bonus</th><th class="num">Adj.</th><th class="num">Score</th>${lb.challenges.map(c=>`<th>${c.slice(3)}</th>`).join("")}</tr></thead><tbody>
-   ${lb.rows.map(r=>`<tr><td>${r.rank}</td><td>${esc(r.teamId)} <span class="dim">${esc(r.teamName)}</span></td><td class="num">${r.solved}</td><td class="num">${r.base}</td><td class="num">${r.bonus}</td><td class="num">${r.adjustment||""}</td><td class="num"><b>${r.score}</b></td>
+   <table><thead><tr><th>#</th><th>Team</th><th class="num">Games</th><th class="num">Games pts</th><th class="num">Solved</th><th class="num">Base</th><th class="num">Bonus</th><th class="num">Adj.</th><th class="num">OBELISK score</th>${lb.challenges.map(c=>`<th>${c.slice(3)}</th>`).join("")}</tr></thead><tbody>
+   ${lb.rows.map(r=>`<tr><td>${r.rank}</td><td>${esc(r.teamId)} <span class="dim">${esc(r.teamName)}</span></td><td class="num">${r.gamesPlayed}/5</td><td class="num">${r.gamesScore}</td><td class="num">${r.solved}</td><td class="num">${r.base}</td><td class="num">${r.bonus}</td><td class="num">${r.adjustment||""}</td><td class="num"><b>${r.score}</b></td>
     ${lb.challenges.map(c=>`<td class="dim">${r.solves[c]?hms(r.solves[c]):""}</td>`).join("")}</tr>`).join("")}
    </tbody></table></div>`;
 }
@@ -333,7 +345,6 @@ function bind() {
   on("[data-ev]", el => act(() => api("/event", {action: el.dataset.ev === "phase2" ? "phase" : el.dataset.ev === "phase1" ? "phase" : el.dataset.ev, number: el.dataset.ev === "phase2" ? 2 : 1}), "Done").then(re));
   const b = (id, fn) => { const el = $("#" + id); if (el) el.onclick = fn; };
   b("evStart", () => act(() => api("/event", {action:"start", phase1Minutes:+val("p1"), phase2Minutes:+val("p2")}), "Event started").then(re));
-  b("evStartObelisk", () => confirm("Start the event directly in OBELISK (Phase 2)? The games round is skipped and challenges open for every team now.") && act(() => api("/event", {action:"start", phase1Minutes:+val("p1"), phase2Minutes:+val("p2"), startPhase:2}), "Event started - challenges are open").then(re));
   b("evEnd", () => confirm("End the event? Submissions will close.") && act(() => api("/event", {action:"end"}), "Event ended").then(re));
   b("evExtend", () => act(() => api("/event", {action:"extend", minutes:+val("ext")}), "Phase extended").then(re));
   b("evFinal", () => confirm("Publish final scores including the time bonus to all teams?") && act(() => api("/event", {action:"finalize"}), "Scores finalized").then(re));
@@ -369,7 +380,7 @@ function bind() {
   // scores
   b("aAdd", () => act(() => api("/adjustments", {teamId: val("aTeam"), points: val("aPts"), reason: val("aWhy")}), "Adjustment applied").then(re));
   on("[data-adel]", el => act(() => api("/adjustments/" + el.dataset.adel + "/delete", {}), "Removed").then(re));
-  b("lbCsv", () => { const lb = state.lb; download("results.csv", "rank,teamId,teamName,solved,base,bonus,adjustment,score\n" + lb.rows.map(r => [r.rank, r.teamId, `"${r.teamName.replace(/"/g,'""')}"`, r.solved, r.base, r.bonus, r.adjustment, r.score].join(",")).join("\n") + "\n"); });
+  b("lbCsv", () => { const lb = state.lb; download("results.csv", "rank,teamId,teamName,gamesPlayed,gamesScore,solved,base,bonus,adjustment,score\n" + lb.rows.map(r => [r.rank, r.teamId, `"${r.teamName.replace(/"/g,'""')}"`, r.gamesPlayed, r.gamesScore, r.solved, r.base, r.bonus, r.adjustment, r.score].join(",")).join("\n") + "\n"); });
   // flags
   b("mfAdd", () => act(() => api("/flags", {teamId: val("mfTeam"), submissionId: val("mfSub") ? +val("mfSub") : null, detail: val("mfDetail")}), "Flag added").then(re));
   const all = $("#allFl"); if (all) all.onchange = () => { state.allFlags = all.checked; re(); };

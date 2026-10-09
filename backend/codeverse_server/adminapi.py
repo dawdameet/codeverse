@@ -110,6 +110,50 @@ def _team_view(app: App, rows_by_pk: dict, t: sqlite3.Row, game_sums: dict | Non
 # --- overview / event -----------------------------------------------------------
 
 
+def phase1_summary(app: App) -> dict:
+    """Live Phase 1 numbers for the Overview: progress per game and the current top teams."""
+    c = app.db.conn()
+    games.settle(app.db)
+    active = c.execute("SELECT COUNT(*) FROM teams WHERE disqualified=0").fetchone()[0]
+    per = {
+        r["game"]: r
+        for r in c.execute(
+            "SELECT g.game, COUNT(*) AS n, AVG(100.0 * g.score / g.max) AS avg, "
+            "SUM(g.score = 0) AS zeros FROM game_results g JOIN teams t ON t.pk=g.team_pk "
+            "WHERE t.disqualified=0 GROUP BY g.game"
+        )
+    }
+    running = {
+        r["game"]: r["n"]
+        for r in c.execute(
+            "SELECT s.game, COUNT(*) AS n FROM game_starts s JOIN teams t ON t.pk=s.team_pk "
+            "LEFT JOIN game_results g ON g.team_pk=s.team_pk AND g.game=s.game "
+            "WHERE g.id IS NULL AND t.disqualified=0 GROUP BY s.game"
+        )
+    }
+    sums = games.summary(app.db)
+    top = sorted(
+        (
+            {"teamId": t["team_id"], "teamName": t["team_name"], "played": sums[t["pk"]]["played"],
+             "score": sums[t["pk"]]["score"]}
+            for t in c.execute("SELECT pk, team_id, team_name FROM teams WHERE disqualified=0")
+            if t["pk"] in sums
+        ),
+        key=lambda r: (-r["score"], -r["played"], r["teamId"]),
+    )[:5]
+    return {
+        "activeTeams": active,
+        "maxTotal": games.TOTAL_SHARE,
+        "games": [
+            {"game": g, "weight": games.WEIGHTS[g], "finished": per[g]["n"] if g in per else 0,
+             "running": running.get(g, 0), "avgPercent": round(per[g]["avg"]) if g in per else None,
+             "forfeited": int(per[g]["zeros"] or 0) if g in per else 0}
+            for g in games.WEIGHTS
+        ],
+        "top": top,
+    }
+
+
 def overview(app: App) -> dict:
     c = app.db.conn()
     by_status = {r["status"]: r["n"] for r in c.execute("SELECT status, COUNT(*) AS n FROM submissions GROUP BY status")}
@@ -136,6 +180,7 @@ def overview(app: App) -> dict:
             "gameRuns": c.execute("SELECT COUNT(*) FROM game_results").fetchone()[0],
             "gamesFinished": sum(1 for g in games.summary(app.db).values() if g["played"] >= len(games.WEIGHTS)),
         },
+        "phase1": phase1_summary(app),
         "judgeReady": app.assets.ok,
         "backups": backups[-5:],
         "serverTime": now(),
@@ -148,8 +193,6 @@ def event_action(app: App, body: dict) -> dict:
     if action == "start":
         event.start(db, float(body.get("phase1Minutes", 60)), float(body.get("phase2Minutes", 180)),
                     float(body.get("gapMinutes", 10)))
-        if body.get("startPhase") == 2:  # skip the games: go straight to the OBELISK challenges
-            event.set_phase(db, 2)
     elif action == "pause":
         event.pause(db)
     elif action == "resume":
@@ -450,13 +493,17 @@ def leaderboard(app: App) -> dict:
     rows = scoring.leaderboard(app.db, app.content, app.max_bonus(), True)
     solves = scoring.solve_times(app.db)
     ids = app.content.ids()
+    gsum = games.summary(app.db)
     return {
         "finalized": app.finalized(),
         "challenges": ids,
+        "gamesMax": games.TOTAL_SHARE,
         "rows": [
             {
                 "rank": r["rank"], "teamId": r["teamId"], "teamName": r["teamName"], "solved": r["solvedCount"],
                 "base": r["base"], "bonus": r["bonus"], "adjustment": r["adjustment"], "score": r["score"],
+                "gamesPlayed": gsum.get(r["pk"], {}).get("played", 0),
+                "gamesScore": gsum.get(r["pk"], {}).get("score", 0),
                 "solves": {c: solves.get(r["pk"], {}).get(c) for c in ids},
             }
             for r in rows

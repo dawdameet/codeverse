@@ -62,12 +62,11 @@ class App:
         ]
 
     def obelisk_open(self, team: sqlite3.Row) -> bool:
-        """OBELISK unlocks when phase 2 opens (organizer or the phase 1 timer running out),
-        or earlier for a team that has finished all the games. It stays visible after the event."""
+        """OBELISK is locked until the organizer opens phase 2 by hand. It stays visible after the event."""
         st = event.status(self.db)
         if st == "NOT_STARTED":
             return False
-        return st == "ENDED" or event.phase(self.db) == 2 or games.all_played(self.db, team["pk"])
+        return st == "ENDED" or event.phase(self.db) == 2
 
     def me(self, team: sqlite3.Row) -> dict:
         rows = self.board()
@@ -124,7 +123,7 @@ class App:
     def require_obelisk(self, team: sqlite3.Row) -> None:
         if not self.obelisk_open(team):
             raise ApiError(403, "PHASE_NOT_OPEN",
-                           "OBELISK unlocks when your team has finished all games or the games round ends")
+                           "OBELISK is locked until the organizers open Phase 2")
 
     def challenges(self, team) -> list[dict]:
         self.require_obelisk(team)
@@ -169,7 +168,7 @@ class App:
         challenge = (challenge or "").strip().upper()
         if not self.content.get(challenge):
             raise ApiError(404, "UNKNOWN_CHALLENGE", f"no such challenge: {challenge}")
-        ok, why = event.accepting_submissions(self.db, games.all_played(self.db, team["pk"]))
+        ok, why = event.accepting_submissions(self.db)
         if not ok:
             raise ApiError(403, why, "submissions are closed right now")
         if not isinstance(patch_text, str) or not patch_text.strip():

@@ -46,36 +46,54 @@ class Games(AdminCase):
         self.A("/games/reset", {"teamId": "CV-001", "game": "logic"})
         self.assertEqual(self.play("logic")[0], 200)
 
-    def test_obelisk_unlocks_early_when_all_games_are_finished(self):
+    def test_obelisk_stays_locked_until_the_organizer_opens_phase_2(self):
         self.assertEqual(self.T("GET", "/api/challenges")[1]["error"], "PHASE_NOT_OPEN")
         self.assertEqual(self.T("GET", "/api/challenges/OB-001")[0], 403)
+        for g in ALL:
+            self.play(g)
+        # all five games finished, still locked
+        self.assertFalse(self.T("GET", "/api/me")[1]["obeliskOpen"])
+        self.assertEqual(self.T("GET", "/api/challenges")[0], 403)
         with self.assertRaises(ApiError) as cm:
             self.app.submit(self.team(1), "OB-001", "garbage")
         self.assertEqual(cm.exception.code, "PHASE_NOT_OPEN")
-        for g in ALL:
-            self.play(g)
+        # a finished timer does not open it either
+        self.app.db.kv_set("phase1_end", time.time() - 1)
+        self.assertEqual(self.call("GET", "/api/status")[1]["phase"], 1)
+        self.assertEqual(self.T("GET", "/api/challenges")[0], 403)
+        # the organizer opens it by hand
+        self.A("/event", {"action": "phase", "number": 2})
         self.assertTrue(self.T("GET", "/api/me")[1]["obeliskOpen"])
         self.assertEqual(len(self.T("GET", "/api/challenges")[1]), 6)
         self.assertEqual(self.app.submit(self.team(1), "OB-001", "garbage")["reason"], "BAD_PATCH")
-        # other teams are still in the games round
-        self.assertEqual(self.call("GET", "/api/status")[1]["phase"], 1)
-        with self.assertRaises(ApiError):
-            self.app.submit(self.team(2), "OB-001", "garbage")
 
-    def test_phase_2_opens_automatically_when_the_games_time_runs_out(self):
-        self.app.db.kv_set("phase1_end", time.time() - 1)
-        status = self.call("GET", "/api/status")[1]
-        self.assertEqual(status["phase"], 2)
-        self.assertGreater(event._f(self.app.db, "phase2_end"), time.time() + 170 * 60)
-        self.assertTrue(self.T("GET", "/api/me")[1]["obeliskOpen"])
-        self.assertEqual(self.T("GET", "/api/challenges")[0], 200)
-        # a run that was still going when the clock ran out may still report (grace period)
+    def test_games_close_when_phase_1_time_is_up(self):
         self.assertEqual(self.play("safe")[0], 200)
         self.app.db.kv_set("phase1_end", time.time() - games.GRACE_SECONDS - 5)
         self.assertEqual(self.T("POST", "/api/games/start", {"game": "bugs"})[1]["error"], "GAMES_CLOSED")
-        # an organizer can still take everyone back to the games
-        self.A("/event", {"action": "phase", "number": 1})
-        self.assertEqual(self.call("GET", "/api/status")[1]["phase"], 1)
+        # extending phase 1 re-opens the games
+        self.A("/event", {"action": "extend", "minutes": 10})
+        self.assertEqual(self.T("POST", "/api/games/start", {"game": "bugs"})[0], 200)
+
+    def test_admin_dashboard_shows_phase_1_points_live(self):
+        self.play("logic", 80, 100)                       # team 1: 240 pts
+        self.play("safe", 50, 100)                        # team 1: +50
+        tok2 = self.call("POST", "/api/login", {"teamId": "CV-002", "accessCode": "code2"}, admin=False)[1]["token"]
+        self.play("logic", 100, 100, tok2)                # team 2: 300 pts
+        self.T("POST", "/api/games/start", {"game": "bugs"}, tok2)   # team 2 is mid-run on bugs
+        ov = self.A("/overview")["phase1"]
+        self.assertEqual([t["teamId"] for t in ov["top"]], ["CV-002", "CV-001"])
+        self.assertEqual((ov["top"][0]["score"], ov["top"][1]["score"]), (300, 290))
+        by = {g["game"]: g for g in ov["games"]}
+        self.assertEqual((by["logic"]["finished"], by["logic"]["avgPercent"]), (2, 90))
+        self.assertEqual((by["bugs"]["finished"], by["bugs"]["running"]), (0, 1))
+        self.assertEqual(ov["activeTeams"], 3)
+        lb = {r["teamId"]: r for r in self.A("/leaderboard")["rows"]}
+        self.assertEqual((lb["CV-001"]["gamesPlayed"], lb["CV-001"]["gamesScore"]), (2, 290))
+        self.assertEqual(lb["CV-002"]["gamesScore"], 300)
+        # a disqualified team drops out of the Phase 1 summary
+        self.A("/teams/CV-002", {"disqualified": True})
+        self.assertEqual([t["teamId"] for t in self.A("/overview")["phase1"]["top"]], ["CV-001"])
 
     def test_refreshing_mid_run_does_not_give_a_second_run(self):
         self.assertEqual(self.T("POST", "/api/games/start", {"game": "safe"})[0], 200)
@@ -92,11 +110,6 @@ class Games(AdminCase):
         # an organizer can reset it
         self.A("/games/reset", {"teamId": "CV-001", "game": "safe"})
         self.assertEqual(self.T("POST", "/api/games/start", {"game": "safe"})[0], 200)
-
-    def test_paused_event_does_not_advance(self):
-        event.pause(self.app.db)
-        self.app.db.kv_set("phase1_end", time.time() - 1)
-        self.assertEqual(self.call("GET", "/api/status")[1]["phase"], 1)
 
     def test_disqualified_team_is_signed_out_and_cannot_sign_in(self):
         self.A("/teams/CV-001", {"disqualified": True})

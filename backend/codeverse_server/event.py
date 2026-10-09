@@ -31,12 +31,7 @@ def status(db: Database) -> str:
 
 
 def phase(db: Database) -> int:
-    current = int(db.kv_get("phase", "1"))
-    # the games round ends on its own when its timer runs out: OBELISK (phase 2) opens automatically
-    if current == 1 and status(db) == "LIVE" and now() >= _f(db, "phase1_end"):
-        set_phase(db, 2)
-        return 2
-    return current
+    return int(db.kv_get("phase", "1"))
 
 
 def start(db: Database, phase1_minutes: float = 60, phase2_minutes: float = 180, gap_minutes: float = 10) -> None:
@@ -88,13 +83,12 @@ def set_phase(db: Database, number: int) -> None:
             db.kv_set("phase1_end", t + REOPEN_MINUTES * 60)
 
 
-def accepting_submissions(db: Database, unlocked_early: bool = False) -> tuple[bool, str]:
-    """``unlocked_early``: the team finished all games, so OBELISK is already open for it in phase 1."""
+def accepting_submissions(db: Database) -> tuple[bool, str]:
     st = status(db)
     if st != "LIVE":
         return False, "EVENT_NOT_LIVE" if st != "ENDED" else "EVENT_ENDED"
     # OBELISK patches are only accepted in phase 2 (phase 1 is the games round)
-    if phase(db) != 2 and not unlocked_early:
+    if phase(db) != 2:
         return False, "PHASE_NOT_OPEN"
     if now() > _f(db, "phase2_end"):
         return False, "EVENT_ENDED"

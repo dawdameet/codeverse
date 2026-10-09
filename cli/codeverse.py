@@ -38,7 +38,7 @@ REASONS = {
     "JUDGE_ERROR": "The judge had an internal error. Ask an organizer; try again shortly.",
     "EVENT_NOT_LIVE": "The event is not live right now.",
     "EVENT_ENDED": "The event has ended.",
-    "PHASE_NOT_OPEN": "OBELISK opens when your team has finished all five games, or when the games round ends.",
+    "PHASE_NOT_OPEN": "OBELISK opens when the organizers start Phase 2.",
     "DISQUALIFIED": "This team has been disqualified. Contact the organizers.",
 }
 
@@ -151,7 +151,7 @@ def cmd_status(args, cfg: dict) -> int:
         print(f"games: {me['gamesPlayed']}/{me['gamesTotal']} played   games score {me['gamesScore']}")
     print()
     if me.get("obeliskOpen") is False:
-        print("  OBELISK is locked: it opens when your team has finished all five games, or when the games round ends.")
+        print("  OBELISK is locked: it opens when the organizers start Phase 2.")
         return 0
     chs = need(*request(cfg, "GET", "/api/challenges"))
     for c in chs:

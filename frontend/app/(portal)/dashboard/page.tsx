@@ -31,10 +31,7 @@ export default function Dashboard() {
 
   const p = me.data;
   const s = status.data;
-  // a team that finished every game gets OBELISK before phase 2 opens for everyone
-  const early = open && s.phase === 1 && s.status !== "ENDED";
-  const active = phases.data.find((x) => x.id === (early ? 2 : s.phase))!;
-  const deadline = early ? active.endTime : s.endTime;
+  const active = phases.data.find((x) => x.id === s.phase)!;
   const gamesDone = GAMES.filter((g) => results[g.id]).length;
   const gamesTotal = GAMES.reduce((n, g) => n + (results[g.id] ? resultShare(g, results[g.id]!) : 0), 0);
 
@@ -44,15 +41,14 @@ export default function Dashboard() {
         <div>
           <div className="label text-red-vibrant">
             Phase {active.id} · {active.id === 1 ? "Games" : "OBELISK"}
-            {early && " · unlocked early"}
           </div>
           <h1 className="display mt-1 text-4xl text-white sm:text-5xl">{active.name}</h1>
           <p className="mt-2 text-paper-dim">{active.tagline}</p>
         </div>
         <div className="text-right">
-          <div className="label">{early ? "OBELISK closes in" : "Time remaining"}</div>
+          <div className="label">Time remaining</div>
           <div className="font-mono text-3xl font-semibold text-white">
-            <Countdown to={deadline} serverTime={s.serverTime} />
+            <Countdown to={s.endTime} serverTime={s.serverTime} />
           </div>
         </div>
       </div>
@@ -106,8 +102,7 @@ export default function Dashboard() {
                 ))}
               </div>
               <p className="mt-4 text-sm text-paper-dim">
-                OBELISK unlocks as soon as your team has finished all five games ({gamesDone}/{GAMES.length} done), or
-                automatically when the games round&apos;s time runs out.
+                The OBELISK challenges are revealed when the organizers start Phase 2 ({gamesDone}/{GAMES.length} games done).
               </p>
             </Panel>
           </div>

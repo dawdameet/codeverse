@@ -5,9 +5,8 @@ export const PHASE_GAMES = 1;
 export const PHASE_OBELISK = 2;
 
 /**
- * OBELISK is revealed when phase 2 opens (organizer, or the games timer running out), early for a
- * team that has finished all five games, and stays visible after the event. The server decides
- * per team (`me.obeliskOpen`); the status-only rule is the fallback while that is loading.
+ * OBELISK is revealed only when the organizer opens phase 2 (and stays visible after the event).
+ * The server decides (`me.obeliskOpen`); the status-only rule is the fallback while that is loading.
  */
 export function obeliskOpen(
   s: CompetitionStatus | null | undefined,

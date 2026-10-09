@@ -108,8 +108,8 @@ def accepting(db: Database) -> tuple[bool, str]:
         return False, "EVENT_NOT_LIVE"
     if st == "ENDED":
         return False, "EVENT_ENDED"
-    # phase 2 may already be open (timer ran out or organizer switched): allow a short grace period
-    if event.phase(db) != 1 and now() > event._f(db, "phase1_end") + GRACE_SECONDS:
+    # the games round is over once its timer runs out or the organizer opens phase 2 (short grace period)
+    if now() > event._f(db, "phase1_end") + GRACE_SECONDS:
         return False, "GAMES_CLOSED"
     return True, ""
 

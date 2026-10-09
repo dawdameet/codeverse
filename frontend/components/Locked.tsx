@@ -7,8 +7,7 @@ export function ObeliskLocked() {
       <div className="label">Phase 2</div>
       <h2 className="display mt-2 text-3xl text-white">The Royal Mint opens after the games</h2>
       <p className="mx-auto mt-3 max-w-md text-paper-dim">
-        The OBELISK debugging challenges unlock as soon as your team has finished all five games, or automatically when
-        the games round&apos;s time runs out.
+        The OBELISK debugging challenges are revealed when the organizers start Phase 2. Finish the games first.
       </p>
       <Link href="/games" className="btn mt-6">
         Go to the games
