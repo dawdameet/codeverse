@@ -6,23 +6,23 @@ import { TierTag } from "@/components/games/GameFrame";
 import { LeaderboardTable } from "@/components/Leaderboard";
 import { Loading, NoSignal, Panel, PhaseBadge, ProgressBar, Stat, StatusBadge } from "@/components/ui";
 import { api } from "@/lib/api";
-import { GAMES, TOTAL_SHARE, share } from "@/lib/games/registry";
-import { useGameResults } from "@/lib/games/storage";
+import { GAMES, TOTAL_SHARE } from "@/lib/games/registry";
+import { resultShare, useGameResults } from "@/lib/games/storage";
 import { useLive } from "@/lib/hooks";
 import { obeliskOpen } from "@/lib/phase";
 import type { Challenge, LeaderboardEntry, Phase } from "@/lib/types";
 
 export default function Dashboard() {
-  const me = useLive(() => api.getParticipant());
+  const me = useLive(() => api.getParticipant(), [], 5000);
   const status = useLive(() => api.getStatus(), [], 5000);
-  const phases = useLive(() => api.getPhases());
-  const results = useGameResults();
-  const open = obeliskOpen(status.data);
-  const challenges = useLive(() => (open ? api.getChallenges() : Promise.resolve(null)), [open]);
-  const board = useLive(() => api.getLeaderboard());
+  const phases = useLive(() => api.getPhases(), [], 5000);
+  const { results } = useGameResults();
+  const open = obeliskOpen(status.data, me.data);
+  const challenges = useLive(() => (open ? api.getChallenges() : Promise.resolve(null)), [open], 5000);
+  const board = useLive(() => api.getLeaderboard(), [], 5000);
 
   if (!me.data || !status.data || !phases.data) {
-    return me.error || status.error ? (
+    return me.error || status.error || phases.error ? (
       <NoSignal message="Cannot reach the Codeverse server. Check your network connection." />
     ) : (
       <Loading />
@@ -31,9 +31,12 @@ export default function Dashboard() {
 
   const p = me.data;
   const s = status.data;
-  const active = phases.data.find((x) => x.id === s.phase)!;
+  // a team that finished every game gets OBELISK before phase 2 opens for everyone
+  const early = open && s.phase === 1 && s.status !== "ENDED";
+  const active = phases.data.find((x) => x.id === (early ? 2 : s.phase))!;
+  const deadline = early ? active.endTime : s.endTime;
   const gamesDone = GAMES.filter((g) => results[g.id]).length;
-  const gamesTotal = GAMES.reduce((n, g) => n + (results[g.id] ? share(g, results[g.id]!.score) : 0), 0);
+  const gamesTotal = GAMES.reduce((n, g) => n + (results[g.id] ? resultShare(g, results[g.id]!) : 0), 0);
 
   return (
     <div className="space-y-8">
@@ -41,14 +44,15 @@ export default function Dashboard() {
         <div>
           <div className="label text-red-vibrant">
             Phase {active.id} · {active.id === 1 ? "Games" : "OBELISK"}
+            {early && " · unlocked early"}
           </div>
           <h1 className="display mt-1 text-4xl text-white sm:text-5xl">{active.name}</h1>
           <p className="mt-2 text-paper-dim">{active.tagline}</p>
         </div>
         <div className="text-right">
-          <div className="label">Time remaining</div>
+          <div className="label">{early ? "OBELISK closes in" : "Time remaining"}</div>
           <div className="font-mono text-3xl font-semibold text-white">
-            <Countdown to={s.endTime} serverTime={s.serverTime} />
+            <Countdown to={deadline} serverTime={s.serverTime} />
           </div>
         </div>
       </div>
@@ -102,7 +106,8 @@ export default function Dashboard() {
                 ))}
               </div>
               <p className="mt-4 text-sm text-paper-dim">
-                The OBELISK challenges are revealed when Phase 2 opens. Play all five games first.
+                OBELISK unlocks as soon as your team has finished all five games ({gamesDone}/{GAMES.length} done), or
+                automatically when the games round&apos;s time runs out.
               </p>
             </Panel>
           </div>

@@ -21,9 +21,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new ApiError("UNREACHABLE", "Codeverse server unreachable on LAN");
   }
-  if (res.status === 401) throw new ApiError("UNAUTHORIZED", "Not authorised");
-  if (res.status === 404) throw new ApiError("NOT_FOUND", "Not found");
-  if (!res.ok) throw new ApiError("SERVER_ERROR", `Server error ${res.status}`);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+    const msg = body.message ?? `Server error ${res.status}`;
+    if (body.error === "DISQUALIFIED") throw new ApiError("DISQUALIFIED", msg, body.error);
+    if (res.status === 401) throw new ApiError("UNAUTHORIZED", "Not authorised", body.error);
+    if (res.status === 403) throw new ApiError("FORBIDDEN", msg, body.error);
+    if (res.status === 404) throw new ApiError("NOT_FOUND", "Not found", body.error);
+    if (res.status === 409) throw new ApiError("CONFLICT", msg, body.error);
+    throw new ApiError("SERVER_ERROR", msg, body.error);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -40,4 +47,6 @@ export const httpApi: CodeverseApi = {
   getChallenge: (id) => request(`/api/challenges/${encodeURIComponent(id)}`),
   getBonusChallenge: () => request("/api/bonus"),
   getLeaderboard: () => request("/api/leaderboard"),
+  getGameResults: () => request("/api/games"),
+  submitGameResult: (r) => request("/api/games", { method: "POST", body: JSON.stringify(r) }),
 };

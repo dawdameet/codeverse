@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import { DaliMask } from "@/components/DaliMask";
 import { MockControls } from "@/components/MockControls";
 import { ApiError } from "@/lib/api";
@@ -10,12 +10,20 @@ import { config } from "@/lib/config";
 import { MOCK_TEAM } from "@/lib/mock/data";
 import { getSession } from "@/lib/session";
 
+const DQ_MESSAGE = "This team has been disqualified and can no longer sign in. Contact the organizers.";
+
 export default function LoginPage() {
   const router = useRouter();
   const [teamId, setTeamId] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // sent here by the portal when the server reports the team as disqualified
+  const kickedOut = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).has("disqualified"),
+    () => false,
+  );
 
   useEffect(() => {
     if (getSession()) router.replace("/dashboard");
@@ -32,7 +40,9 @@ export default function LoginPage() {
       setError(
         err instanceof ApiError && err.code === "UNREACHABLE"
           ? "Cannot reach the Codeverse server. Check your network connection."
-          : "Team ID or access code not recognised.",
+          : err instanceof ApiError && err.code === "DISQUALIFIED"
+            ? DQ_MESSAGE
+            : "Team ID or access code not recognised.",
       );
       setBusy(false);
     }
@@ -75,9 +85,9 @@ export default function LoginPage() {
               required
             />
           </label>
-          {error && (
+          {(error ?? (kickedOut ? DQ_MESSAGE : null)) && (
             <p role="alert" className="rounded-lg border border-red/50 bg-red-dim/30 px-3 py-2 text-sm">
-              {error}
+              {error ?? DQ_MESSAGE}
             </p>
           )}
           <button type="submit" className="btn w-full" disabled={busy}>

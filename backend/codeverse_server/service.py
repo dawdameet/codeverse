@@ -6,7 +6,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from . import auth, event, patches, scoring
+from . import auth, event, games, patches, scoring
 from .config import Config
 from .content import Content
 from .db import Database, now
@@ -61,9 +61,18 @@ class App:
             for r in self.board()
         ]
 
+    def obelisk_open(self, team: sqlite3.Row) -> bool:
+        """OBELISK unlocks when phase 2 opens (organizer or the phase 1 timer running out),
+        or earlier for a team that has finished all the games. It stays visible after the event."""
+        st = event.status(self.db)
+        if st == "NOT_STARTED":
+            return False
+        return st == "ENDED" or event.phase(self.db) == 2 or games.all_played(self.db, team["pk"])
+
     def me(self, team: sqlite3.Row) -> dict:
         rows = self.board()
         mine = next(r for r in rows if r["pk"] == team["pk"])
+        g = games.summary(self.db).get(team["pk"], {"played": 0, "score": 0})
         return {
             "id": mine["teamId"],
             "teamId": mine["teamId"],
@@ -72,6 +81,10 @@ class App:
             "rank": mine["rank"],
             "totalTeams": len(rows),
             "solvedCount": mine["solvedCount"],
+            "gamesPlayed": g["played"],
+            "gamesTotal": len(games.WEIGHTS),
+            "gamesScore": g["score"],
+            "obeliskOpen": self.obelisk_open(team),
         }
 
     def queue_depth(self) -> tuple[int, float]:
@@ -108,8 +121,25 @@ class App:
         status = "SOLVED" if row["solved"] else "IN_PROGRESS" if row["attempts"] else "NOT_STARTED"
         return {**base, "status": status}
 
+    def require_obelisk(self, team: sqlite3.Row) -> None:
+        if not self.obelisk_open(team):
+            raise ApiError(403, "PHASE_NOT_OPEN",
+                           "OBELISK unlocks when your team has finished all games or the games round ends")
+
     def challenges(self, team) -> list[dict]:
+        self.require_obelisk(team)
         return [self.challenge_view(team, c) for c in self.content.challenges]
+
+    # --- games ---------------------------------------------------------------
+
+    def game_results(self, team: sqlite3.Row) -> dict:
+        return games.results(self.db, team["pk"])
+
+    def record_game(self, team: sqlite3.Row, body: dict) -> dict:
+        try:
+            return games.record(self.db, team["pk"], body)
+        except games.GameError as exc:
+            raise ApiError(exc.status, exc.code, exc.message)
 
     # --- submissions -------------------------------------------------------
 
@@ -133,7 +163,7 @@ class App:
         challenge = (challenge or "").strip().upper()
         if not self.content.get(challenge):
             raise ApiError(404, "UNKNOWN_CHALLENGE", f"no such challenge: {challenge}")
-        ok, why = event.accepting_submissions(self.db)
+        ok, why = event.accepting_submissions(self.db, games.all_played(self.db, team["pk"]))
         if not ok:
             raise ApiError(403, why, "submissions are closed right now")
         if not isinstance(patch_text, str) or not patch_text.strip():

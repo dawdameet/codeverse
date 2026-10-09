@@ -1,11 +1,19 @@
-import type { CompetitionStatus } from "./types";
+import type { CompetitionStatus, Participant } from "./types";
 
 /** Phase 1 = the games round. Phase 2 = the OBELISK debugging round. */
 export const PHASE_GAMES = 1;
 export const PHASE_OBELISK = 2;
 
-/** The OBELISK challenges are revealed once phase 2 opens (and stay visible after the event). */
-export function obeliskOpen(s: CompetitionStatus | null | undefined): boolean {
+/**
+ * OBELISK is revealed when phase 2 opens (organizer, or the games timer running out), early for a
+ * team that has finished all five games, and stays visible after the event. The server decides
+ * per team (`me.obeliskOpen`); the status-only rule is the fallback while that is loading.
+ */
+export function obeliskOpen(
+  s: CompetitionStatus | null | undefined,
+  me?: Participant | null,
+): boolean {
+  if (me && typeof me.obeliskOpen === "boolean") return me.obeliskOpen;
   return !!s && (s.phase === PHASE_OBELISK || s.status === "ENDED");
 }
 

@@ -38,7 +38,8 @@ REASONS = {
     "JUDGE_ERROR": "The judge had an internal error. Ask an organizer; try again shortly.",
     "EVENT_NOT_LIVE": "The event is not live right now.",
     "EVENT_ENDED": "The event has ended.",
-    "PHASE_NOT_OPEN": "OBELISK submissions open in Phase 2 (the debugging round). Phase 1 is the games.",
+    "PHASE_NOT_OPEN": "OBELISK opens when your team has finished all five games, or when the games round ends.",
+    "DISQUALIFIED": "This team has been disqualified. Contact the organizers.",
 }
 
 
@@ -113,6 +114,8 @@ def request(cfg: dict, method: str, path: str, body: dict | None = None, auth: b
 def need(status: int, data, expected: int = 200):
     if status == 401:
         raise CliError("your session is not valid - run: codeverse login")
+    if status == 403 and data.get("error") in REASONS:
+        raise CliError(REASONS[data["error"]])
     if status != expected:
         raise CliError(data.get("message") or data.get("error") or f"server error {status}")
     return data
@@ -142,10 +145,15 @@ def cmd_login(args, cfg: dict) -> int:
 def cmd_status(args, cfg: dict) -> int:
     me = need(*request(cfg, "GET", "/api/me"))
     ev = need(*request(cfg, "GET", "/api/status", auth=False))
-    chs = need(*request(cfg, "GET", "/api/challenges"))
     print(f"{me['teamName']} ({me['teamId']})   rank {me['rank']}/{me['totalTeams']}   score {me['score']}")
     print(f"event: {ev['status']}   phase {ev['phase']}   ends {ev['endTime']}")
+    if "gamesPlayed" in me:
+        print(f"games: {me['gamesPlayed']}/{me['gamesTotal']} played   games score {me['gamesScore']}")
     print()
+    if me.get("obeliskOpen") is False:
+        print("  OBELISK is locked: it opens when your team has finished all five games, or when the games round ends.")
+        return 0
+    chs = need(*request(cfg, "GET", "/api/challenges"))
     for c in chs:
         mark = {"SOLVED": "[x]", "IN_PROGRESS": "[~]"}.get(c["status"], "[ ]")
         print(f"  {mark} {c['id']}  {c['name']:<26} {c['points']:>4} pts  {c['status'].replace('_', ' ').lower()}")

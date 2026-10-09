@@ -1,8 +1,10 @@
+import { GAMES, share } from "../games/registry";
 import { BONUS, CHALLENGES, MOCK_TEAM, RIVALS } from "../mock/data";
 import { mockEpoch, readMockState, type Scenario } from "../mock/state";
 import type {
   Challenge,
   ChallengeStatus,
+  GameResultRecord,
   LeaderboardEntry,
   Participant,
   Phase,
@@ -75,6 +77,27 @@ function board(): LeaderboardEntry[] {
   return rows.map((r, i) => ({ ...r, rank: i + 1 }));
 }
 
+// Mock mode has no server: official game results live in this browser.
+const GAMES_KEY = "codeverse.mock.games";
+
+function gameStore(): Record<string, GameResultRecord> {
+  try {
+    return JSON.parse(localStorage.getItem(GAMES_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function gamesSummary() {
+  const store = gameStore();
+  const played = GAMES.filter((g) => store[g.id]);
+  return {
+    gamesPlayed: played.length,
+    gamesTotal: GAMES.length,
+    gamesScore: played.reduce((n, g) => n + share(g, store[g.id].score), 0),
+  };
+}
+
 function phases(): Phase[] {
   const now = mockEpoch();
   const { phase } = readMockState();
@@ -122,6 +145,7 @@ export const mockApi: CodeverseApi = {
   async getParticipant(): Promise<Participant> {
     await gate();
     const me = board().find((r) => r.teamId === MOCK_TEAM.teamId)!;
+    const games = gamesSummary();
     return {
       id: MOCK_TEAM.id,
       teamId: me.teamId,
@@ -130,6 +154,8 @@ export const mockApi: CodeverseApi = {
       rank: me.rank,
       totalTeams: RIVALS.length + 1,
       solvedCount: me.solvedCount,
+      ...games,
+      obeliskOpen: readMockState().phase === 2 || games.gamesPlayed === games.gamesTotal,
     };
   },
 
@@ -173,5 +199,21 @@ export const mockApi: CodeverseApi = {
   async getLeaderboard() {
     await gate();
     return board();
+  },
+
+  async getGameResults() {
+    await gate();
+    return gameStore();
+  },
+
+  async submitGameResult(r) {
+    await gate();
+    const store = gameStore();
+    if (store[r.game]) throw new ApiError("CONFLICT", "Already recorded", "ALREADY_PLAYED");
+    store[r.game] = r;
+    try {
+      localStorage.setItem(GAMES_KEY, JSON.stringify(store));
+    } catch {}
+    return r;
   },
 };

@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { TierTag } from "@/components/games/GameFrame";
 import { PageTitle, Panel } from "@/components/ui";
-import { GAMES, TOTAL_SHARE, share } from "@/lib/games/registry";
-import { useGameResults } from "@/lib/games/storage";
+import { GAMES, TOTAL_SHARE } from "@/lib/games/registry";
+import { resultShare, useGameResults } from "@/lib/games/storage";
 
 export default function GamesHub() {
-  const results = useGameResults();
-  const total = GAMES.reduce((n, g) => n + (results[g.id] ? share(g, results[g.id]!.score) : 0), 0);
+  const { results } = useGameResults();
+  const total = GAMES.reduce((n, g) => n + (results[g.id] ? resultShare(g, results[g.id]!) : 0), 0);
 
   return (
     <div className="space-y-8">

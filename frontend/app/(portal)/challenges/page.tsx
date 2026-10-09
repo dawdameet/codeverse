@@ -9,17 +9,18 @@ import { obeliskOpen } from "@/lib/phase";
 
 export default function ChallengesPage() {
   const status = useLive(() => api.getStatus(), [], 5000);
-  const open = obeliskOpen(status.data);
+  const me = useLive(() => api.getParticipant(), [], 5000);
+  const open = obeliskOpen(status.data, me.data);
   const challenges = useLive(() => (open ? api.getChallenges() : Promise.resolve(null)), [open]);
   const phases = useLive(() => api.getPhases());
 
-  if (!status.data || !phases.data) {
-    return status.error ? <NoSignal message="Cannot reach the Codeverse server." /> : <Loading />;
+  if (!status.data || !phases.data || !me.data) {
+    return status.error || me.error || phases.error ? <NoSignal message="Cannot reach the Codeverse server." /> : <Loading />;
   }
   if (!open) {
     return (
       <>
-        <PageTitle title="OBELISK" subtitle="Phase 2 · locked" />
+        <PageTitle title="OBELISK" subtitle={`Phase 2 · locked · games finished ${me.data.gamesPlayed}/${me.data.gamesTotal}`} />
         <ObeliskLocked />
       </>
     );

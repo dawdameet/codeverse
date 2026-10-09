@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from .db import Database, now
 
+REOPEN_MINUTES = 10
 PHASE_NAMES = {1: "THE INFILTRATION", 2: "THE ROYAL MINT"}
 PHASE_TAGLINES = {
     1: "Five quick games to get the crew past the Mint's outer defences.",
@@ -30,7 +31,12 @@ def status(db: Database) -> str:
 
 
 def phase(db: Database) -> int:
-    return int(db.kv_get("phase", "1"))
+    current = int(db.kv_get("phase", "1"))
+    # the games round ends on its own when its timer runs out: OBELISK (phase 2) opens automatically
+    if current == 1 and status(db) == "LIVE" and now() >= _f(db, "phase1_end"):
+        set_phase(db, 2)
+        return 2
+    return current
 
 
 def start(db: Database, phase1_minutes: float = 60, phase2_minutes: float = 180, gap_minutes: float = 10) -> None:
@@ -75,14 +81,20 @@ def set_phase(db: Database, number: int) -> None:
         db.kv_set("phase2_start", t)
         db.kv_set("phase2_end", t + (length if length > 0 else 180 * 60))
         db.kv_set("phase1_end", min(_f(db, "phase1_end"), t))  # phase 1 is over once phase 2 opens
+    elif number == 1:
+        # going back to the games: give phase 1 some time again, or it would end (and re-open phase 2) at once
+        t = now()
+        if _f(db, "phase1_end") <= t:
+            db.kv_set("phase1_end", t + REOPEN_MINUTES * 60)
 
 
-def accepting_submissions(db: Database) -> tuple[bool, str]:
+def accepting_submissions(db: Database, unlocked_early: bool = False) -> tuple[bool, str]:
+    """``unlocked_early``: the team finished all games, so OBELISK is already open for it in phase 1."""
     st = status(db)
     if st != "LIVE":
         return False, "EVENT_NOT_LIVE" if st != "ENDED" else "EVENT_ENDED"
     # OBELISK patches are only accepted in phase 2 (phase 1 is the games round)
-    if phase(db) != 2:
+    if phase(db) != 2 and not unlocked_early:
         return False, "PHASE_NOT_OPEN"
     if now() > _f(db, "phase2_end"):
         return False, "EVENT_ENDED"

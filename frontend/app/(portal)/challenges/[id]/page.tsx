@@ -11,10 +11,11 @@ import { obeliskOpen } from "@/lib/phase";
 export default function ChallengePage() {
   const { id } = useParams<{ id: string }>();
   const status = useLive(() => api.getStatus(), [], 5000);
-  const open = obeliskOpen(status.data);
+  const me = useLive(() => api.getParticipant(), [], 5000);
+  const open = obeliskOpen(status.data, me.data);
   const { data: c, error } = useLive(() => (open ? api.getChallenge(id) : Promise.resolve(null)), [id, open]);
 
-  if (status.data && !open) return <ObeliskLocked />;
+  if (status.data && me.data && !open) return <ObeliskLocked />;
   if (!c) {
     if (error?.code === "NOT_FOUND")
       return (

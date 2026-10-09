@@ -55,6 +55,7 @@
     <h1>CODE<b>VERSE</b> Admin</h1>
     <nav id="tabs"></nav>
     <span id="evPill" class="pill"></span>
+    <span id="updated" class="dim" style="font-size:12px" title="The panel refreshes every 5 seconds"></span>
     <button class="b g sm" id="logout">Log out</button>
   </header>
   <main id="view"></main>
@@ -72,7 +73,8 @@ let token = sessionStorage.getItem("cv_admin") || "";
 let tab = location.hash.slice(1) || "overview";
 let timer = null, state = {};
 
-const TABS = [["overview","Overview"],["teams","Teams"],["submissions","Submissions"],["scores","Scores"],["flags","Flags"],["audit","Audit log"]];
+const TABS = [["overview","Overview"],["teams","Teams"],["games","Games"],["submissions","Submissions"],["scores","Scores"],["flags","Flags"],["audit","Audit log"]];
+const GAME_NAMES = {safe:"Safe", ledger:"Ledger", patrol:"Patrol", logic:"Logic", bugs:"Bug hunt"};
 
 function toast(msg, err=false) {
   const t = $("#toast"); t.textContent = msg; t.className = err ? "err" : ""; t.style.display = "block";
@@ -107,9 +109,13 @@ function start() {
   $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
   render();
   clearInterval(timer);
-  timer = setInterval(() => { if (["overview","submissions"].includes(tab) && !$(".modal.open") && !document.activeElement.matches("input,textarea,select")) render(true); }, 5000);
+  // live: every tab refreshes; skipped while a dialog is open or the organizer is typing
+  timer = setInterval(() => { if (!document.hidden && !$(".modal.open") && !document.activeElement.matches("input,textarea,select")) render(true); }, 5000);
 }
 function nav(t) { tab = t; location.hash = t; render(); }
+// catch up at once when the organizer comes back to this browser tab
+document.addEventListener("visibilitychange", () => { if (!document.hidden && token && !$(".modal.open")) render(true); });
+window.addEventListener("hashchange", () => { const t = location.hash.slice(1); if (t && t !== tab) nav(t); });
 function drawTabs(ov) {
   $("#tabs").innerHTML = TABS.map(([k, l]) => {
     let b = ""; if (k === "flags" && ov && ov.counts.openFlags) b = `<span class="badge">${ov.counts.openFlags}</span>`;
@@ -121,11 +127,15 @@ function drawTabs(ov) {
 async function render(quiet) {
   try {
     const ov = await api("/overview"); state.ov = ov; drawTabs(ov);
-    const v = { overview: vOverview, teams: vTeams, submissions: vSubmissions, scores: vScores, flags: vFlags, audit: vAudit }[tab] || vOverview;
+    const v = { overview: vOverview, teams: vTeams, games: vGames, submissions: vSubmissions, scores: vScores, flags: vFlags, audit: vAudit }[tab] || vOverview;
     const html = await v(ov);
+    // an automatic refresh keeps whatever the organizer had typed (but not yet submitted)
+    const kept = quiet ? [...$("#view").querySelectorAll("input[id],textarea[id],select[id]")].map(el => [el.id, el.type === "checkbox" ? el.checked : el.value]) : [];
     if (html !== undefined) $("#view").innerHTML = html;
+    for (const [id, v] of kept) { const el = document.getElementById(id); if (el) el.type === "checkbox" ? el.checked = v : el.value = v; }
+    $("#updated").textContent = "live · updated " + new Date().toLocaleTimeString([], {hour12:false});
     bind();
-  } catch (e) { if (!quiet) toast(e.message, true); }
+  } catch (e) { $("#updated").textContent = "not updating: " + e.message; if (!quiet) toast(e.message, true); }
 }
 function modal(html) { $("#modalBody").innerHTML = html; $("#modal").classList.add("open"); }
 function closeModal() { $("#modal").classList.remove("open"); }
@@ -145,18 +155,20 @@ async function vOverview(ov) {
     <div class="stat"><b>${(st.ACCEPTED||0)} / ${(st.REJECTED||0)}</b><span>accepted / rejected</span></div>
     <div class="stat"><b class="${q.inFlight>8?"bad":""}">${q.inFlight}</b><span>in queue (oldest ${q.oldestSeconds}s, ${q.workers} workers)</span></div>
     <div class="stat"><b class="${c.openFlags?"bad":""}">${c.openFlags}</b><span>open flags</span></div>
+    <div class="stat"><b>${c.gamesFinished} / ${c.teams - c.disqualified}</b><span>teams finished all games (${c.gameRuns} official runs)</span></div>
     <div class="stat"><b class="${ov.judgeReady?"ok":"bad"}">${ov.judgeReady?"ready":"MISSING"}</b><span>judge assets</span></div>
   </div>
   <div class="grid g2">
    <div class="card"><h2>Event</h2>
     <p>${pill(e.status)} phase ${e.phase}: ${esc(p.name)} ${e.finalized?'<span class="tag">scores finalized</span>':""}</p>
-    <p class="dim">Phase ends: ${esc(new Date(p.endTime).toLocaleString([], {hour12:false}))}</p>
+    <p class="dim">Phase ends: ${esc(new Date(p.endTime).toLocaleString([], {hour12:false}))}${e.phase===1&&e.status!=="ENDED"?" · OBELISK then opens automatically (teams that finish all games get it earlier)":""}</p>
     ${e.status==="NOT_STARTED"||e.status==="ENDED" ? `
       <div class="row"><label>Phase 1 minutes (games)</label><input id="p1" type="number" value="60" style="width:80px">
-      <label>Phase 2 (OBELISK)</label><input id="p2" type="number" value="180" style="width:80px"><button class="b" id="evStart">Start event</button></div>` : `
+      <label>Phase 2 (OBELISK)</label><input id="p2" type="number" value="180" style="width:80px"><button class="b" id="evStart">Start event</button>
+      <button class="b g" id="evStartObelisk" title="Skips the games: the OBELISK challenges open immediately for every team">Start challenges directly (skip games)</button></div>` : `
       <div class="row">
        ${e.status==="LIVE"?'<button class="b g" data-ev="pause">Pause</button>':'<button class="b" data-ev="resume">Resume</button>'}
-       <button class="b g" data-ev="phase2">Open phase 2 (OBELISK)</button><button class="b g" data-ev="phase1">Back to phase 1 (games)</button>
+       <button class="b g" data-ev="phase2" title="Opens automatically when the phase 1 timer runs out">Start challenges now (open phase 2)</button><button class="b g" data-ev="phase1">Back to phase 1 (games)</button>
        <button class="b warn" id="evEnd">End event</button></div>
       <div class="row"><label>Add minutes to current phase</label><input id="ext" type="number" value="10" style="width:70px"><button class="b g sm" id="evExtend">Extend</button></div>`}
     <div class="row">${e.finalized?'<button class="b g" data-ev="unfinalize">Hide time bonus (un-finalize)</button>':'<button class="b g" id="evFinal">Finalize scores (publish time bonus)</button>'}</div>
@@ -189,12 +201,12 @@ async function vTeams() {
   </div>
   <div class="card scroll"><div class="row" style="justify-content:space-between"><h2>${teams.length} teams</h2>
     <div class="row"><button class="b g sm" id="credCsv">Download credentials (CSV)</button><button class="b g sm" id="credPrint">Print credential slips</button></div></div>
-   <table><thead><tr><th>Team</th><th>Name</th><th>Access code</th><th class="num">Rank</th><th class="num">Score</th><th class="num">Solved</th><th class="num">Subs</th><th>Flags</th><th></th></tr></thead><tbody>
+   <table><thead><tr><th>Team</th><th>Name</th><th>Access code</th><th class="num">Rank</th><th class="num">Score</th><th class="num">Solved</th><th class="num">Games</th><th class="num">Games pts</th><th>OBELISK</th><th class="num">Subs</th><th>Flags</th><th></th></tr></thead><tbody>
    ${teams.map(t => `<tr>
      <td class="mono">${esc(t.teamId)}</td>
      <td>${esc(t.teamName)}${t.disqualified?'<span class="tag bad">DQ</span>':""}</td>
      <td class="mono secret" data-code="${esc(t.accessCode||"")}" title="click to reveal">••••••</td>
-     <td class="num">${t.rank ?? "-"}</td><td class="num">${t.score ?? "-"}</td><td class="num">${t.solved ?? "-"}</td><td class="num">${t.submissions}</td>
+     <td class="num">${t.rank ?? "-"}</td><td class="num">${t.score ?? "-"}</td><td class="num">${t.solved ?? "-"}</td><td class="num">${t.gamesPlayed}/5</td><td class="num">${t.gamesScore}</td><td>${t.obeliskOpen?'<span class="pill ok">open</span>':'<span class="dim">locked</span>'}</td><td class="num">${t.submissions}</td>
      <td>${t.openFlags?`<span class="pill bad">${t.openFlags}</span>`:""}</td>
      <td style="white-space:nowrap">
        <button class="b g sm" data-tact="subs" data-t="${esc(t.teamId)}">Submissions</button>
@@ -213,11 +225,25 @@ function printSlips(list) {
   w.document.close(); w.print();
 }
 
+/* ---------------- Games (phase 1) ---------------- */
+async function vGames() {
+  const g = await api("/games");
+  const pct = r => Math.round(100 * r.score / r.max);
+  return `
+  <div class="card scroll"><h2>Official game runs</h2>
+   <p class="dim">Each cell: percentage (weighted points). Weights: ${g.games.map(x => `${GAME_NAMES[x]||x} x${g.weights[x]}`).join(", ")} · max ${g.maxTotal}. Click a result to let that team replay the official run.</p>
+   <table><thead><tr><th>#</th><th>Team</th><th class="num">Played</th><th class="num">Games pts</th>${g.games.map(x=>`<th>${esc(GAME_NAMES[x]||x)}</th>`).join("")}</tr></thead><tbody>
+   ${g.rows.map((r, i) => `<tr style="${r.disqualified?"opacity:.5":""}"><td>${r.disqualified?"-":i+1}</td><td>${esc(r.teamId)} <span class="dim">${esc(r.teamName)}</span>${r.disqualified?'<span class="tag bad">DQ</span>':""}</td>
+     <td class="num ${r.played===g.games.length?"ok":""}">${r.played}/${g.games.length}</td><td class="num"><b>${r.total}</b></td>
+     ${g.games.map(x => { const v = r.results[x]; return `<td>${v ? `<a href="#" data-greset="${esc(x)}" data-t="${esc(r.teamId)}" title="${esc(v.detail)} · ${esc(new Date(v.finishedAt).toLocaleTimeString([], {hour12:false}))}">${pct(v)}% <span class="dim">(${v.share})</span></a>` : '<span class="dim">-</span>'}</td>`; }).join("")}</tr>`).join("") || `<tr><td colspan="9" class="dim">No teams.</td></tr>`}
+   </tbody></table></div>`;
+}
+
 /* ---------------- Submissions ---------------- */
 async function vSubmissions() {
   const f = state.filter || {};
   const qs = new URLSearchParams({limit: 150, ...Object.fromEntries(Object.entries(f).filter(([,v]) => v))}).toString();
-  const [data, teams] = await Promise.all([api("/submissions?" + qs), state.teams ? state.teams : api("/teams")]);
+  const [data, teams] = await Promise.all([api("/submissions?" + qs), api("/teams")]);
   state.teams = teams;
   const chs = ["OB-001","OB-002","OB-003","OB-004","OB-005","OB-006"];
   return `
@@ -260,7 +286,7 @@ async function openSub(id) {
 
 /* ---------------- Scores ---------------- */
 async function vScores() {
-  const [lb, adj, teams] = await Promise.all([api("/leaderboard"), api("/adjustments"), state.teams ? state.teams : api("/teams")]);
+  const [lb, adj, teams] = await Promise.all([api("/leaderboard"), api("/adjustments"), api("/teams")]);
   state.teams = teams; state.lb = lb;
   return `
   <div class="grid g2"><div class="card"><h2>Adjust a score</h2>
@@ -278,7 +304,7 @@ async function vScores() {
 /* ---------------- Flags ---------------- */
 async function vFlags() {
   const showAll = state.allFlags;
-  const [fl, teams] = await Promise.all([api("/flags" + (showAll ? "" : "?resolved=0")), state.teams ? state.teams : api("/teams")]);
+  const [fl, teams] = await Promise.all([api("/flags" + (showAll ? "" : "?resolved=0")), api("/teams")]);
   state.teams = teams;
   return `
   <div class="card"><h2>Add a manual flag</h2><div class="row"><select id="mfTeam">${teams.map(t=>`<option value="${esc(t.teamId)}">${esc(t.teamId)} ${esc(t.teamName)}</option>`).join("")}</select>
@@ -307,6 +333,7 @@ function bind() {
   on("[data-ev]", el => act(() => api("/event", {action: el.dataset.ev === "phase2" ? "phase" : el.dataset.ev === "phase1" ? "phase" : el.dataset.ev, number: el.dataset.ev === "phase2" ? 2 : 1}), "Done").then(re));
   const b = (id, fn) => { const el = $("#" + id); if (el) el.onclick = fn; };
   b("evStart", () => act(() => api("/event", {action:"start", phase1Minutes:+val("p1"), phase2Minutes:+val("p2")}), "Event started").then(re));
+  b("evStartObelisk", () => confirm("Start the event directly in OBELISK (Phase 2)? The games round is skipped and challenges open for every team now.") && act(() => api("/event", {action:"start", phase1Minutes:+val("p1"), phase2Minutes:+val("p2"), startPhase:2}), "Event started - challenges are open").then(re));
   b("evEnd", () => confirm("End the event? Submissions will close.") && act(() => api("/event", {action:"end"}), "Event ended").then(re));
   b("evExtend", () => act(() => api("/event", {action:"extend", minutes:+val("ext")}), "Phase extended").then(re));
   b("evFinal", () => confirm("Publish final scores including the time bonus to all teams?") && act(() => api("/event", {action:"finalize"}), "Scores finalized").then(re));
@@ -326,11 +353,14 @@ function bind() {
     if (a === "subs") { state.filter = {team: t}; nav("submissions"); return; }
     if (a === "rename") { const n = prompt("New team name for " + t, state.teams.find(x => x.teamId === t).teamName); if (n) await act(() => api(base, {teamName: n}), "Renamed"); }
     if (a === "reset") { if (confirm("Generate a new access code for " + t + "? They will be signed out.")) { const r = await act(() => api(base, {resetCode: true})); if (r) alert("New access code for " + t + ": " + r.newAccessCode); } }
-    if (a === "dq") { if (confirm("Disqualify " + t + "? They will be removed from the leaderboard and signed out.")) await act(() => api(base, {disqualified: true}), "Disqualified"); }
+    if (a === "dq") { if (confirm("Disqualify " + t + "? They will be removed from the leaderboard, signed out everywhere, and can no longer sign in.")) await act(() => api(base, {disqualified: true}), "Disqualified"); }
     if (a === "restore") await act(() => api(base, {disqualified: false}), "Restored");
     if (a === "delete") { if (confirm("Delete " + t + "? Only possible if it has no submissions.")) await act(() => api(base + "/delete", {}), "Deleted"); }
     re();
   });
+  // games
+  on("[data-greset]", el => confirm(`Delete ${el.dataset.t}'s official ${GAME_NAMES[el.dataset.greset]||el.dataset.greset} result so they can replay it?`) &&
+    act(() => api("/games/reset", {teamId: el.dataset.t, game: el.dataset.greset}), "Result deleted - the team can play it again").then(re));
   // submissions
   on("[data-sub]", el => openSub(+el.dataset.sub));
   b("fApply", () => { state.filter = {team: val("fTeam"), challenge: val("fCh"), status: val("fSt")}; re(); });

@@ -103,7 +103,8 @@ class Teams(AdminCase):
 
         # disqualify / restore
         self.A("/teams/CV-004", {"disqualified": True})
-        self.assertIsNone(auth.login(self.app.db, "CV-004", r["newAccessCode"]))
+        with self.assertRaises(auth.Disqualified):
+            auth.login(self.app.db, "CV-004", r["newAccessCode"])
         self.assertNotIn("CV-004", [x["teamId"] for x in self.app.leaderboard()])
         self.A("/teams/CV-004", {"disqualified": False})
         self.assertIn("CV-004", [x["teamId"] for x in self.app.leaderboard()])

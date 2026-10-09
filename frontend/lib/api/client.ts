@@ -2,6 +2,7 @@ import type {
   BonusChallenge,
   Challenge,
   CompetitionStatus,
+  GameResultRecord,
   LeaderboardEntry,
   Participant,
   Phase,
@@ -21,10 +22,17 @@ export interface CodeverseApi {
   getChallenge(id: string): Promise<Challenge>;
   getBonusChallenge(): Promise<BonusChallenge>;
   getLeaderboard(): Promise<LeaderboardEntry[]>;
+  /** The team's official game results, keyed by game id. */
+  getGameResults(): Promise<Record<string, GameResultRecord>>;
+  /** Record an official game run (once per game). */
+  submitGameResult(r: GameResultRecord): Promise<GameResultRecord>;
 }
 
 export type ApiErrorCode =
   | "UNAUTHORIZED"
+  | "DISQUALIFIED"
+  | "FORBIDDEN"
+  | "CONFLICT"
   | "NOT_FOUND"
   | "UNREACHABLE"
   | "SERVER_ERROR";
@@ -33,6 +41,8 @@ export class ApiError extends Error {
   constructor(
     public code: ApiErrorCode,
     message: string,
+    /** Error code from the server body, e.g. PHASE_NOT_OPEN or ALREADY_PLAYED. */
+    public reason?: string,
   ) {
     super(message);
   }

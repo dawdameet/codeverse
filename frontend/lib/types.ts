@@ -19,6 +19,12 @@ export interface Participant {
   rank: number;
   totalTeams: number;
   solvedCount: number;
+  /** Phase 1 games: official runs recorded / available, and the weighted games score. */
+  gamesPlayed: number;
+  gamesTotal: number;
+  gamesScore: number;
+  /** OBELISK is open for this team (phase 2, games all finished, or the event ended). */
+  obeliskOpen: boolean;
 }
 
 export interface Phase {
@@ -76,6 +82,18 @@ export interface CompetitionStatus {
   serverTime: string;
   /** Organizer message shown as a banner (empty when none). */
   announcement?: string;
+}
+
+/** One official game run, as stored by the server. */
+export interface GameResultRecord {
+  game: string;
+  score: number;
+  max: number;
+  detail: string;
+  durationMs: number;
+  finishedAt: string;
+  /** Weighted points (weight x percentage); filled in by the server. */
+  share?: number;
 }
 
 export interface Session {

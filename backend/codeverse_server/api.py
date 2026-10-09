@@ -61,6 +61,8 @@ class Handler(BaseHTTPRequestHandler):
         team = auth.team_for_token(self.app.db, token) if token else None
         if team is None:
             raise ApiError(401, "UNAUTHORIZED", "missing or invalid token")
+        if team["disqualified"]:
+            raise ApiError(403, "DISQUALIFIED", "this team has been disqualified")
         return team
 
     @property
@@ -114,7 +116,10 @@ class Handler(BaseHTTPRequestHandler):
 
 def r_login(h: Handler):
     body = h._body()
-    session = auth.login(h.app.db, str(body.get("teamId", "")), str(body.get("accessCode", "")))
+    try:
+        session = auth.login(h.app.db, str(body.get("teamId", "")), str(body.get("accessCode", "")))
+    except auth.Disqualified:
+        raise ApiError(403, "DISQUALIFIED", "this team has been disqualified and can no longer sign in")
     if session is None:
         raise ApiError(401, "UNAUTHORIZED", "invalid team ID or access code")
     return session
@@ -128,6 +133,7 @@ def r_health(h: Handler):
 
 def r_challenge(h: Handler, cid: str):
     team = h._team()
+    h.app.require_obelisk(team)
     base = h.app.content.get(cid)
     if base is None:
         raise ApiError(404, "NOT_FOUND", f"no such challenge: {cid}")
@@ -150,6 +156,8 @@ ROUTES = [
     ("GET", re.compile(r"/api/challenges"), lambda h: h.app.challenges(h._team())),
     ("GET", re.compile(r"/api/challenges/([A-Za-z0-9-]+)"), r_challenge),
     ("GET", re.compile(r"/api/bonus"), lambda h: (h._team(), h.app.content.bonus)[1]),
+    ("GET", re.compile(r"/api/games"), lambda h: h.app.game_results(h._team())),
+    ("POST", re.compile(r"/api/games"), lambda h: h.app.record_game(h._team(), h._body())),
     ("POST", re.compile(r"/api/submissions"), r_submit),
     ("GET", re.compile(r"/api/submissions"), lambda h: h.app.submissions_for(h._team())),
     ("GET", re.compile(r"/api/submissions/(\d+)"),
@@ -192,6 +200,8 @@ ADMIN_ROUTES = [
     ("POST", re.compile(r"/api/admin/flags"), lambda h: adminapi.create_flag(h.app, h._body())),
     ("POST", re.compile(r"/api/admin/flags/(\d+)"), _ab(adminapi.update_flag, int)),
     ("GET", re.compile(r"/api/admin/audit"), _a(adminapi.audit_log)),
+    ("GET", re.compile(r"/api/admin/games"), _a(adminapi.game_results)),
+    ("POST", re.compile(r"/api/admin/games/reset"), lambda h: adminapi.reset_game(h.app, h._body())),
 ]
 
 

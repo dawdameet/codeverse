@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { type GameMeta } from "@/lib/games/registry";
 import { useLive } from "@/lib/hooks";
 import { gamesOpen } from "@/lib/phase";
-import { devMode, saveOfficial, useGameResults, type GameResult } from "@/lib/games/storage";
+import { devMode, saveOfficial, useGameResults, type GameResult, type SaveOutcome } from "@/lib/games/storage";
 
 export type Mode = "practice" | "official";
 
@@ -105,10 +105,10 @@ export function GameFrame({
   meta: GameMeta;
   children: (api: PlayApi) => ReactNode;
 }) {
-  const results = useGameResults();
+  const { results, loaded } = useGameResults();
   const previous = results[meta.id];
   const [run, setRun] = useState<{ mode: Mode; seed: number; id: number } | null>(null);
-  const [result, setResult] = useState<{ r: GameResult; mode: Mode } | null>(null);
+  const [result, setResult] = useState<{ r: GameResult; mode: Mode; saved?: SaveOutcome | "saving" } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const status = useLive(() => api.getStatus(), [], 5000);
   const window_ = gamesOpen(status.data);
@@ -133,8 +133,12 @@ export function GameFrame({
         mode={run.mode}
         seed={run.seed}
         onDone={(r) => {
-          if (run.mode === "official") saveOfficial(r);
-          setResult({ r, mode: run.mode });
+          if (run.mode !== "official") {
+            setResult({ r, mode: run.mode });
+            return;
+          }
+          setResult({ r, mode: run.mode, saved: "saving" });
+          saveOfficial(r).then((saved) => setResult({ r, mode: run.mode, saved }));
         }}
       >
         {children}
@@ -146,7 +150,20 @@ export function GameFrame({
     const pct = result.r.max ? Math.round((100 * result.r.score) / result.r.max) : 0;
     return (
       <div className="panel mx-auto max-w-xl space-y-4 p-8 text-center">
-        <div className="label">{result.mode === "official" ? "Official result recorded" : "Practice result (not recorded)"}</div>
+        <div className="label">
+          {result.mode === "practice"
+            ? "Practice result (not recorded)"
+            : result.saved === "saving"
+              ? "Recording official result…"
+              : result.saved?.state === "saved"
+                ? "Official result recorded"
+                : result.saved?.state === "pending"
+                  ? "Saved on this device · will be sent when the server is reachable"
+                  : "Official result not recorded"}
+        </div>
+        {result.saved && result.saved !== "saving" && result.saved.state === "rejected" && (
+          <p className="text-sm text-amber">{result.saved.message}</p>
+        )}
         <h1 className="display text-3xl text-white">{meta.title}</h1>
         <div className="display text-6xl text-red-vibrant">
           {result.r.score}
@@ -206,8 +223,10 @@ export function GameFrame({
         <button className="btn btn-ghost" onClick={() => start("practice")}>
           Practice (different puzzles, not recorded)
         </button>
-        {locked ? (
-          <span className="text-sm text-paper-dim">You have already used your official run.</span>
+        {!loaded && !devMode() ? (
+          <span className="text-sm text-paper-dim">Checking your team&apos;s official results…</span>
+        ) : locked ? (
+          <span className="text-sm text-paper-dim">Your team has already used its official run.</span>
         ) : closed ? (
           <span className="text-sm text-amber">{window_.reason} Official runs are only open during Phase 1.</span>
         ) : confirming ? (

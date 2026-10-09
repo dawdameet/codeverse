@@ -11,7 +11,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-from . import auth, event, scoring
+from . import auth, event, games, scoring
 from .db import now
 from .service import ApiError, App
 
@@ -80,7 +80,7 @@ def _next_team_id(app: App) -> str:
     return f"CV-{(max(nums) + 1) if nums else 1:03d}"
 
 
-def _team_view(app: App, rows_by_pk: dict, t: sqlite3.Row) -> dict:
+def _team_view(app: App, rows_by_pk: dict, t: sqlite3.Row, game_sums: dict | None = None) -> dict:
     c = app.db.conn()
     stats = c.execute(
         "SELECT COUNT(*) AS n, MAX(created) AS last FROM submissions WHERE team_pk=?", (t["pk"],)
@@ -89,6 +89,7 @@ def _team_view(app: App, rows_by_pk: dict, t: sqlite3.Row) -> dict:
         "SELECT COUNT(*) AS n FROM flags WHERE team_pk=? AND resolved=0", (t["pk"],)
     ).fetchone()["n"]
     b = rows_by_pk.get(t["pk"], {})
+    g = (game_sums if game_sums is not None else games.summary(app.db)).get(t["pk"], {})
     return {
         "teamId": t["team_id"],
         "teamName": t["team_name"],
@@ -100,6 +101,9 @@ def _team_view(app: App, rows_by_pk: dict, t: sqlite3.Row) -> dict:
         "score": b.get("score"),
         "rank": b.get("rank"),
         "solved": b.get("solvedCount"),
+        "gamesPlayed": g.get("played", 0),
+        "gamesScore": g.get("score", 0),
+        "obeliskOpen": app.obelisk_open(t),
     }
 
 
@@ -129,6 +133,8 @@ def overview(app: App) -> dict:
             "submissions": c.execute("SELECT COUNT(*) FROM submissions").fetchone()[0],
             "byStatus": by_status,
             "openFlags": c.execute("SELECT COUNT(*) FROM flags WHERE resolved=0").fetchone()[0],
+            "gameRuns": c.execute("SELECT COUNT(*) FROM game_results").fetchone()[0],
+            "gamesFinished": sum(1 for g in games.summary(app.db).values() if g["played"] >= len(games.WEIGHTS)),
         },
         "judgeReady": app.assets.ok,
         "backups": backups[-5:],
@@ -142,6 +148,8 @@ def event_action(app: App, body: dict) -> dict:
     if action == "start":
         event.start(db, float(body.get("phase1Minutes", 60)), float(body.get("phase2Minutes", 180)),
                     float(body.get("gapMinutes", 10)))
+        if body.get("startPhase") == 2:  # skip the games: go straight to the OBELISK challenges
+            event.set_phase(db, 2)
     elif action == "pause":
         event.pause(db)
     elif action == "resume":
@@ -208,9 +216,10 @@ def create_backup(app: App) -> dict:
 def teams(app: App) -> list[dict]:
     board = {r["pk"]: r for r in scoring.leaderboard(app.db, app.content, app.max_bonus(), app.finalized())}
     rows = app.db.conn().execute("SELECT * FROM teams ORDER BY team_id").fetchall()
+    sums = games.summary(app.db)
     out = []
     for t in rows:
-        v = _team_view(app, board, t)
+        v = _team_view(app, board, t, sums)
         if t["disqualified"]:
             v["score"], v["rank"] = None, None
         out.append(v)
@@ -287,11 +296,41 @@ def delete_team(app: App, team_id: str) -> dict:
     c = app.db.conn()
     if c.execute("SELECT 1 FROM submissions WHERE team_pk=?", (t["pk"],)).fetchone():
         raise ApiError(409, "HAS_SUBMISSIONS", "this team has submissions; disqualify it instead")
-    for table in ("tokens", "adjustments", "flags"):
+    for table in ("tokens", "adjustments", "flags", "game_results"):
         c.execute(f"DELETE FROM {table} WHERE team_pk=?", (t["pk"],))
     c.execute("DELETE FROM teams WHERE pk=?", (t["pk"],))
     app.audit("team:delete", t["team_id"])
     return {"deleted": t["team_id"]}
+
+
+# --- games -----------------------------------------------------------------------
+
+
+def game_results(app: App) -> dict:
+    """Every team's official game runs (phase 1)."""
+    teams_ = app.db.conn().execute("SELECT pk, team_id, team_name, disqualified FROM teams ORDER BY team_id").fetchall()
+    rows = []
+    for t in teams_:
+        res = games.results(app.db, t["pk"])
+        rows.append({
+            "teamId": t["team_id"], "teamName": t["team_name"], "disqualified": bool(t["disqualified"]),
+            "results": res, "played": len(res), "total": sum(r["share"] for r in res.values()),
+        })
+    rows.sort(key=lambda r: (r["disqualified"], -r["total"], -r["played"], r["teamId"]))
+    return {"games": list(games.WEIGHTS), "weights": games.WEIGHTS, "maxTotal": games.TOTAL_SHARE, "rows": rows}
+
+
+def reset_game(app: App, body: dict) -> dict:
+    """Delete one official game result so the team can play that game's official run again."""
+    t = _team(app, body.get("teamId", ""))
+    game = str(body.get("game", "")).strip().lower()
+    if game not in games.WEIGHTS:
+        raise ApiError(404, "UNKNOWN_GAME", f"no such game: {game}")
+    cur = app.db.conn().execute("DELETE FROM game_results WHERE team_pk=? AND game=?", (t["pk"], game))
+    if not cur.rowcount:
+        raise ApiError(404, "NOT_FOUND", f"{t['team_id']} has no official result for {game}")
+    app.audit("game:reset", f"{t['team_id']} {game}")
+    return {"reset": game, "teamId": t["team_id"]}
 
 
 # --- submissions ----------------------------------------------------------------------

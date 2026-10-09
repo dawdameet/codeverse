@@ -227,7 +227,8 @@ class Http(BackendCase):
         self.assertEqual(code, 200)
         tok = session["token"]
         _, me = self.call("GET", "/api/me", token=tok)
-        self.assertEqual(set(me), {"id", "teamId", "teamName", "score", "rank", "totalTeams", "solvedCount"})
+        self.assertEqual(set(me), {"id", "teamId", "teamName", "score", "rank", "totalTeams", "solvedCount",
+                                   "gamesPlayed", "gamesTotal", "gamesScore", "obeliskOpen"})
         self.assertEqual(me["totalTeams"], 3)
         _, chs = self.call("GET", "/api/challenges", token=tok)
         self.assertEqual(len(chs), 6)

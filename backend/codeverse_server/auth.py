@@ -31,13 +31,19 @@ def upsert_team(db: Database, team_id: str, team_name: str, access_code: str) ->
     )
 
 
+class Disqualified(Exception):
+    """Correct credentials, but the team was disqualified."""
+
+
 def login(db: Database, team_id: str, access_code: str) -> dict | None:
     team_id = team_id.strip().upper()
     row = db.conn().execute("SELECT * FROM teams WHERE team_id=?", (team_id,)).fetchone()
-    if row is None or row["disqualified"]:
+    if row is None:
         return None
     if not secrets.compare_digest(row["code_hash"], hash_code(team_id, access_code.strip())):
         return None
+    if row["disqualified"]:
+        raise Disqualified(team_id)
     tok = db.conn().execute(
         "SELECT token FROM tokens WHERE team_pk=? ORDER BY created DESC LIMIT 1", (row["pk"],)
     ).fetchone()
@@ -50,8 +56,8 @@ def login(db: Database, team_id: str, access_code: str) -> dict | None:
 
 
 def team_for_token(db: Database, token: str) -> sqlite3.Row | None:
+    """The token's team, disqualified or not (callers must refuse disqualified teams)."""
     return db.conn().execute(
-        "SELECT t.* FROM tokens k JOIN teams t ON t.pk = k.team_pk "
-        "WHERE k.token=? AND t.disqualified=0",
+        "SELECT t.* FROM tokens k JOIN teams t ON t.pk = k.team_pk WHERE k.token=?",
         (token,),
     ).fetchone()

@@ -185,7 +185,7 @@ python codeverse.py submit OB-003                 # from inside their OBELISK fo
 ### 6.2 Start of event
 1. Servers running (section 3). Admin panel signed in.
 2. Overview > **Start event** (Phase 1 = games, default 60 min; Phase 2 = OBELISK, default 180 min) - or `admin start --phase1-minutes 60 --phase2-minutes 180`. The event opens in **Phase 1**: participants play the five games; the OBELISK challenges are locked on the website and CLI submissions are refused (`PHASE_NOT_OPEN`).
-   **When the games round is over, press Overview > "Open phase 2 (OBELISK)"** (or `admin phase 2`): the challenges appear, submissions are accepted, official game runs close, and the countdown switches to the Phase 2 clock. Nothing switches phases automatically. and the website shows the countdown at zero.
+   **Phase 2 opens automatically when the Phase 1 timer runs out** (or press Overview > "Open phase 2 (OBELISK) now", or `admin phase 2`): the challenges appear, submissions are accepted, official game runs close, and the countdown switches to the Phase 2 clock. A team that finishes all five games earlier gets OBELISK straight away.
 3. Optionally publish an **announcement** ("Phase 1 is live - good luck", later "Phase 2 is open: OBELISK repos at the ready").
 4. Watch Overview: queue depth, open flags.
 
@@ -197,7 +197,7 @@ python codeverse.py submit OB-003                 # from inside their OBELISK fo
 | Pause for a fire alarm | Overview > **Pause** (closes submissions; deadlines shift by the pause length on Resume) |
 | A team lost its code | Teams > *New code* (signs them out; give them the new one) |
 | Fix a wrong judgement | Submissions > *Re-judge*, or *Force accept/reject*, or *Grant solve* |
-| Remove a cheater | Teams > *Disqualify* (removed from leaderboard, signed out); or Scores/Submissions > *Invalidate* only the offending submission |
+| Remove a cheater | Teams > *Disqualify* (removed from leaderboard, signed out on every device, cannot sign in again - website and CLI show "disqualified"; *Restore* undoes a mistake); or Scores/Submissions > *Invalidate* only the offending submission |
 | Reward / penalise | Scores > *Adjust a score* (+/- points with a reason; visible immediately) |
 | A test turned out wrong | fix the test in `OBELISK/ORGANIZERS-ONLY/private_tests`, rebuild judge assets, restart backend, Submissions > *Re-judge everything for OB-00X* |
 | Look at suspicious activity | Flags tab (forbidden file paths; identical non-trivial patches across teams). Flags never change scores by themselves. |
@@ -215,7 +215,7 @@ python codeverse.py submit OB-003                 # from inside their OBELISK fo
 
 ## 7. How scoring works (so you can explain it)
 
-- **Phase 1 (games)** is scored in the browser (see 10b); **Phase 2 (OBELISK)** is what the backend judges and what the leaderboard shows. The OBELISK points per bug: OB-001 50, OB-002 75, OB-003 100, OB-004 150, OB-005 200, OB-006 300 (total 875).
+- **Phase 1 (games)** is played in the browser and recorded by the backend (see 10b; admin panel > Games); **Phase 2 (OBELISK)** is what the backend judges and what the leaderboard shows. The OBELISK points per bug: OB-001 50, OB-002 75, OB-003 100, OB-004 150, OB-005 200, OB-006 300 (total 875).
 - A bug is solved when the patch is **ACCEPTED**: all tests for that bug pass **and** nothing that previously passed now fails (`PASSED = TOTAL`). Participants only ever see `PASSED x/y`.
 - One bug = one patch. A commit must be labelled `FIX[OB-00X]` and match the challenge submitted; it may only change files under `src/obelisk/`; a patch that fixes two bugs is rejected; already-solved bugs are rejected.
 - **Time bonus:** for each bug, solvers are ranked by *submission time*. With N solvers, the rank-r solver gets `points x maxBonus x (N-r)/(N-1)` (a lone solver gets the full `points x maxBonus`). `maxBonus` defaults to 0.5. **Hidden until you Finalize**, so the leaderboard shows base points during the event.
@@ -273,18 +273,23 @@ python codeverse.py submit OB-003                 # from inside their OBELISK fo
 ## 10b. The shortlisting games (website, `/games`)
 
 Five browser games live in the same website (nav item **Games**): Crack the Safe (easy), The Ledger Audit and Guard Patrol (medium),
-Logic Lockpick (intermediate), Bug Hunt Terminal (hard). They need no backend and work offline.
+Logic Lockpick (intermediate), Bug Hunt Terminal (hard). The games run in the browser; each official result is sent to the backend.
 
 - **Official run vs practice:** each team gets **one official run** per game with the *same* seeded puzzles for everyone
   (seeds in `frontend/lib/games/registry.ts`); practice uses random puzzles and is never recorded.
 - **Scoring:** each game reports its own points; the hub shows a combined total as `weight x percentage` with weights
   Easy 1, Medium 2, Intermediate 3, Hard 4 (max 1200). Weights live in `registry.ts`.
-- **Phase rules:** official runs only work while the event is LIVE in **Phase 1**; once you open Phase 2 they close (practice stays open).
-  The OBELISK challenges are hidden until Phase 2 (or the event has ended).
-- **Where results live (for now):** the participant's browser (`localStorage`), per team ID. There is **no games leaderboard
-  yet** - next step is a backend endpoint plus a leaderboard page. Until then results cannot be compared across teams.
-- **Re-run a game for a team / testing:** in the browser console run `localStorage.setItem("codeverse.games.dev","1")` to allow
-  unlimited official runs on that browser (remove the key to restore the limit).
+- **Phase rules:** official runs only work while the event is LIVE in **Phase 1** (a run still in progress when Phase 1 closes
+  may report up to 2 minutes late); after that they close (practice stays open).
+- **OBELISK unlock:** a team sees the OBELISK challenges (and may submit) as soon as it has **finished all five games**, even while
+  others are still in Phase 1. For everyone else Phase 2 opens **automatically when the Phase 1 timer runs out** (or when you press
+  *Open phase 2 now*). Pausing stops the timer. *Back to phase 1* re-opens the games for at least 10 minutes.
+- **Where results live:** in the backend database (`game_results`), one official result per game per team, so every laptop of a
+  team sees the same progress. If the network drops, the result waits in that browser and is re-sent automatically.
+  Admin panel > **Games** shows every team's results live; **Teams** shows games played / games points / OBELISK locked or open.
+- **Re-run a game for a team:** Admin panel > Games, click the team's result and confirm - it is deleted and the team can play that
+  official run again. For testing, `localStorage.setItem("codeverse.games.dev","1")` in the browser console allows unlimited runs
+  on that browser (the server still keeps only the first result).
 - **Known limitation:** the answer keys (Safe codes, Ledger anomalies, Bug Hunt answers) are generated in the browser, so a
   determined person could read them from the page source. Fine for a supervised round; for a hard guarantee, move the
   generators/`grade()` to the backend (they are pure functions in `frontend/lib/games/`).

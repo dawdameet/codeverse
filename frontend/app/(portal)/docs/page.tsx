@@ -169,7 +169,8 @@ export default function DocsPage() {
 
           <Section id="phase-2" title="Phase 2 — The Royal Mint (OBELISK)">
             <p>
-              When the organizers open Phase 2, the OBELISK challenges are revealed. There are exactly
+              The OBELISK challenges are revealed as soon as your team has finished all five games, or for
+              everyone when the Phase 1 timer runs out. There are exactly
               six primary vulnerabilities, spanning from <span className="code">OB-001</span> (Beginner)
               to <span className="code">OB-006</span> (Elite). Each defect resides in an independent
               subsystem of OBELISK.
@@ -177,7 +178,7 @@ export default function DocsPage() {
             <p>
               The mission dossier highlights observed anomalies and intended behaviors. Isolating the
               root defect and crafting the surgical patch is the responsibility of your crew. Patches
-              are submitted with the Codeverse CLI, and only while Phase 2 is open.
+              are submitted with the Codeverse CLI, and only while OBELISK is open for your team.
             </p>
           </Section>
 

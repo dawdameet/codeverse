@@ -64,6 +64,18 @@ CREATE TABLE IF NOT EXISTS audit (
     action TEXT NOT NULL,
     detail TEXT
 );
+CREATE TABLE IF NOT EXISTS game_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_pk INTEGER NOT NULL REFERENCES teams(pk),
+    game TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    max INTEGER NOT NULL,
+    share INTEGER NOT NULL,          -- weighted points (weight x percentage)
+    detail TEXT,
+    duration_ms INTEGER,
+    created REAL NOT NULL,
+    UNIQUE(team_pk, game)
+);
 CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL

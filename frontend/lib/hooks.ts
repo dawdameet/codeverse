@@ -7,6 +7,13 @@ import { MOCK_EVENT } from "./mock/state";
 import { ApiError } from "./api";
 import { clearSession } from "./session";
 
+const REFRESH_EVENT = "codeverse-refresh";
+
+/** Ask every mounted useLive to refetch now (e.g. right after saving something). */
+export function refreshLive() {
+  window.dispatchEvent(new Event(REFRESH_EVENT));
+}
+
 export interface Live<T> {
   data: T | null;
   error: ApiError | null;
@@ -42,6 +49,12 @@ export function useLive<T>(
           const err =
             e instanceof ApiError ? e : new ApiError("SERVER_ERROR", String(e));
           if (err.code === "UNREACHABLE") reportConnection(false);
+          if (err.code === "DISQUALIFIED") {
+            clearSession();
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+            window.location.href = "/login?disqualified=1";
+            return;
+          }
           if (err.code === "UNAUTHORIZED" && config.apiMode === "http") {
             clearSession(); // token no longer valid (e.g. server data reset)
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
@@ -52,10 +65,12 @@ export function useLive<T>(
     run();
     const timer = setInterval(run, intervalMs);
     window.addEventListener(MOCK_EVENT, run);
+    window.addEventListener(REFRESH_EVENT, run);
     return () => {
       cancelled = true;
       clearInterval(timer);
       window.removeEventListener(MOCK_EVENT, run);
+      window.removeEventListener(REFRESH_EVENT, run);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intervalMs, ...deps]);
