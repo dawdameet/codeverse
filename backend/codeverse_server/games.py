@@ -12,6 +12,11 @@ from .db import Database, now
 WEIGHTS = {"safe": 1, "ledger": 2, "patrol": 2, "logic": 3, "bugs": 4}
 # time limit of one run in minutes; must match frontend/lib/games/registry.ts
 MINUTES = {"safe": 10, "ledger": 12, "patrol": 15, "logic": 15, "bugs": 20}
+# true maximum score of each game; the server never trusts the maximum sent by the browser.
+# Must match GAMES[].max in frontend/lib/games/registry.ts (frontend/tests checks this).
+MAX_SCORE = {"safe": 1450, "ledger": 240, "patrol": 500, "logic": 900, "bugs": 300}
+# a finished run faster than this is physically implausible for a person: flagged for the organizers
+MIN_PLAUSIBLE_SECONDS = 20
 TOTAL_SHARE = sum(w * 100 for w in WEIGHTS.values())
 # a run started just before the games round closed may still report its result this long afterwards
 GRACE_SECONDS = 120
@@ -83,12 +88,16 @@ def results(db: Database, team_pk: int) -> dict[str, dict]:
 
 
 def summary(db: Database) -> dict[int, dict]:
-    """team_pk -> {"played": n, "score": weighted total}."""
+    """team_pk -> {"played": n, "score": weighted total + organizer adjustments, "base", "adjustment"}."""
     settle(db)
-    rows = db.conn().execute(
-        "SELECT team_pk, COUNT(*) AS n, SUM(share) AS total FROM game_results GROUP BY team_pk"
-    ).fetchall()
-    return {r["team_pk"]: {"played": r["n"], "score": r["total"] or 0} for r in rows}
+    out: dict[int, dict] = {}
+    for r in db.conn().execute("SELECT team_pk, COUNT(*) AS n, SUM(share) AS total FROM game_results GROUP BY team_pk"):
+        out[r["team_pk"]] = {"played": r["n"], "base": r["total"] or 0, "adjustment": 0}
+    for r in db.conn().execute("SELECT team_pk, SUM(points) AS total FROM adjustments WHERE phase=1 GROUP BY team_pk"):
+        out.setdefault(r["team_pk"], {"played": 0, "base": 0, "adjustment": 0})["adjustment"] = r["total"] or 0
+    for v in out.values():
+        v["score"] = v["base"] + v["adjustment"]
+    return out
 
 
 def played(db: Database, team_pk: int) -> int:
@@ -108,6 +117,8 @@ def accepting(db: Database) -> tuple[bool, str]:
         return False, "EVENT_NOT_LIVE"
     if st == "ENDED":
         return False, "EVENT_ENDED"
+    if st == "PAUSED":
+        return False, "EVENT_PAUSED"
     # the games round is over once its timer runs out or the organizer opens phase 2 (short grace period)
     if now() > event._f(db, "phase1_end") + GRACE_SECONDS:
         return False, "GAMES_CLOSED"
@@ -118,14 +129,13 @@ def record(db: Database, team_pk: int, body: dict) -> dict:
     game = str(body.get("game", "")).strip().lower()
     if game not in WEIGHTS:
         raise GameError(404, "UNKNOWN_GAME", f"no such game: {game}")
+    max_score = MAX_SCORE[game]
     try:
-        max_score = int(body.get("max"))
         score = int(body.get("score"))
-        duration = max(0, int(body.get("durationMs") or 0))
-    except (TypeError, ValueError):
-        raise GameError(400, "BAD_REQUEST", "score, max and durationMs must be numbers")
-    if max_score <= 0 or not 0 <= score <= max_score:
-        raise GameError(400, "BAD_REQUEST", "score must be between 0 and max")
+    except (TypeError, ValueError, OverflowError):
+        raise GameError(400, "BAD_REQUEST", "score must be a number")
+    if not 0 <= score <= max_score:
+        raise GameError(400, "BAD_REQUEST", f"score must be between 0 and {max_score}")
     settle(db)
     with db.transaction() as c:
         existing = c.execute(
@@ -143,4 +153,10 @@ def record(db: Database, team_pk: int, body: dict) -> dict:
             (team_pk, game, score, max_score, share(game, score, max_score),
              str(body.get("detail") or "")[:300], duration, now()),
         )
+        if duration < MIN_PLAUSIBLE_SECONDS * 1000 and score > 0:
+            c.execute(
+                "INSERT INTO flags(team_pk, submission_id, kind, detail, created) VALUES(?,?,?,?,?)",
+                (team_pk, None, "GAME_TOO_FAST",
+                 f"{game}: {score}/{max_score} reported {duration / 1000:.1f}s after the run was opened", now()),
+            )
     return results(db, team_pk)[game]

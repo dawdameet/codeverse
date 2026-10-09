@@ -52,12 +52,27 @@ class App:
             "INSERT INTO audit(at, action, detail) VALUES(?,?,?)", (now(), action, detail[:500])
         )
 
+    def games_round(self) -> bool:
+        """True while the leaderboard ranks teams by Phase 1 (games) points."""
+        return event.phase(self.db) == 1 and event.status(self.db) != "ENDED"
+
     def board(self) -> list[dict]:
-        return scoring.leaderboard(self.db, self.content, self.max_bonus(), self.finalized())
+        rows = scoring.leaderboard(self.db, self.content, self.max_bonus(), self.finalized())
+        g = games.summary(self.db)
+        for r in rows:
+            mine = g.get(r["pk"], {})
+            r["gamesPlayed"] = mine.get("played", 0)
+            r["gamesScore"] = mine.get("score", 0)
+        if self.games_round():
+            # Phase 1: rank by game points (more games played first on a tie, then by name)
+            rows.sort(key=lambda r: (-r["gamesScore"], -r["gamesPlayed"], r["teamName"].lower()))
+            for i, r in enumerate(rows, start=1):
+                r["rank"] = i
+        return rows
 
     def leaderboard(self) -> list[dict]:
         return [
-            {k: r[k] for k in ("rank", "teamId", "teamName", "score", "solvedCount")}
+            {k: r[k] for k in ("rank", "teamId", "teamName", "score", "solvedCount", "gamesScore", "gamesPlayed")}
             for r in self.board()
         ]
 
@@ -71,7 +86,7 @@ class App:
     def me(self, team: sqlite3.Row) -> dict:
         rows = self.board()
         mine = next(r for r in rows if r["pk"] == team["pk"])
-        g = games.summary(self.db).get(team["pk"], {"played": 0, "score": 0})
+        g = {"played": mine["gamesPlayed"], "score": mine["gamesScore"]}
         return {
             "id": mine["teamId"],
             "teamId": mine["teamId"],

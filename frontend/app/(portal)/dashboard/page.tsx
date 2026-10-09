@@ -58,7 +58,7 @@ export default function Dashboard() {
           <div className="grid gap-4 sm:grid-cols-3">
             <Stat label="Games score" value={gamesTotal} sub={`of ${TOTAL_SHARE} (weighted)`} accent />
             <Stat label="Games played" value={`${gamesDone} / ${GAMES.length}`} sub={`${GAMES.length - gamesDone} to go`} />
-            <Stat label="Team" value={<span className="text-3xl">{p.teamName}</span>} sub={p.teamId} />
+            <Stat label="Team" value={<span className="text-3xl">{p.teamName}</span>} sub={`${p.teamId} · rank ${p.rank} / ${p.totalTeams}`} />
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">

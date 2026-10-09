@@ -352,15 +352,48 @@ def delete_team(app: App, team_id: str) -> dict:
 def game_results(app: App) -> dict:
     """Every team's official game runs (phase 1)."""
     teams_ = app.db.conn().execute("SELECT pk, team_id, team_name, disqualified FROM teams ORDER BY team_id").fetchall()
+    gsum = games.summary(app.db)
     rows = []
     for t in teams_:
         res = games.results(app.db, t["pk"])
         rows.append({
             "teamId": t["team_id"], "teamName": t["team_name"], "disqualified": bool(t["disqualified"]),
-            "results": res, "played": len(res), "total": sum(r["share"] for r in res.values()),
+            "results": res, "played": len(res), "adjustment": gsum.get(t["pk"], {}).get("adjustment", 0),
+            "total": gsum.get(t["pk"], {}).get("score", 0),
         })
     rows.sort(key=lambda r: (r["disqualified"], -r["total"], -r["played"], r["teamId"]))
-    return {"games": list(games.WEIGHTS), "weights": games.WEIGHTS, "maxTotal": games.TOTAL_SHARE, "rows": rows}
+    return {"games": list(games.WEIGHTS), "weights": games.WEIGHTS, "max": games.MAX_SCORE,
+            "maxTotal": games.TOTAL_SHARE, "rows": rows}
+
+
+def set_game_result(app: App, body: dict) -> dict:
+    """Organizer override: set (or create) a team's official score for one game."""
+    t = _team(app, body.get("teamId", ""))
+    game = str(body.get("game", "")).strip().lower()
+    if game not in games.WEIGHTS:
+        raise ApiError(404, "UNKNOWN_GAME", f"no such game: {game}")
+    top = games.MAX_SCORE[game]
+    try:
+        score = int(body.get("score"))
+    except (TypeError, ValueError, OverflowError):
+        raise ApiError(400, "BAD_REQUEST", "score must be a whole number")
+    if not 0 <= score <= top:
+        raise ApiError(400, "BAD_REQUEST", f"score must be between 0 and {top}")
+    note = str(body.get("note", "")).strip()[:120]
+    c = app.db.conn()
+    old = c.execute("SELECT score FROM game_results WHERE team_pk=? AND game=?", (t["pk"], game)).fetchone()
+    detail = "Set by organizer" + (f" (was {old['score']})" if old else "") + (f": {note}" if note else "")
+    share = games.share(game, score, top)
+    if old:
+        c.execute("UPDATE game_results SET score=?, max=?, share=?, detail=? WHERE team_pk=? AND game=?",
+                  (score, top, share, detail, t["pk"], game))
+    else:
+        c.execute("INSERT INTO game_results(team_pk, game, score, max, share, detail, duration_ms, created) "
+                  "VALUES(?,?,?,?,?,?,0,?)", (t["pk"], game, score, top, share, detail, now()))
+        # a recorded result also ends any unfinished run, so the team cannot replay it
+        c.execute("INSERT OR IGNORE INTO game_starts(team_pk, game, started) VALUES(?,?,?)", (t["pk"], game, now()))
+    app.audit("game:set", f"{t['team_id']} {game} -> {score}/{top} ({share} pts){' ' + note if note else ''}")
+    return {"teamId": t["team_id"], "game": game, "score": score, "max": top, "share": share}
 
 
 def reset_game(app: App, body: dict) -> dict:
@@ -516,7 +549,7 @@ def adjustments(app: App) -> list[dict]:
         "SELECT a.*, t.team_id, t.team_name FROM adjustments a JOIN teams t ON t.pk=a.team_pk ORDER BY a.id DESC"
     ).fetchall()
     return [{"id": r["id"], "teamId": r["team_id"], "teamName": r["team_name"], "points": r["points"],
-             "reason": r["reason"], "created": r["created"]} for r in rows]
+             "reason": r["reason"], "created": r["created"], "phase": r["phase"]} for r in rows]
 
 
 def add_adjustment(app: App, body: dict) -> list[dict]:
@@ -528,9 +561,10 @@ def add_adjustment(app: App, body: dict) -> list[dict]:
     if points == 0 or abs(points) > 100000:
         raise ApiError(400, "BAD_REQUEST", "points must be non-zero")
     reason = str(body.get("reason", "")).strip()[:200]
-    app.db.conn().execute("INSERT INTO adjustments(team_pk, points, reason, created) VALUES(?,?,?,?)",
-                          (t["pk"], points, reason, now()))
-    app.audit("adjustment", f"{t['team_id']} {points:+d} {reason}")
+    phase = 1 if str(body.get("phase", "2")) == "1" else 2
+    app.db.conn().execute("INSERT INTO adjustments(team_pk, points, reason, created, phase) VALUES(?,?,?,?,?)",
+                          (t["pk"], points, reason, now(), phase))
+    app.audit("adjustment", f"{t['team_id']} phase{phase} {points:+d} {reason}")
     return adjustments(app)
 
 

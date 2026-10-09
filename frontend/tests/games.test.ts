@@ -190,3 +190,14 @@ test("bugs: grading", () => {
     [8, 8],
   );
 });
+
+// ---------- the backend pins each game's maximum score (it must not trust the browser) ----------
+test("backend MAX_SCORE table matches the games' real maximums", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { GAMES } = await import("../lib/games/registry.ts");
+  const py = readFileSync(new URL("../../backend/codeverse_server/games.py", import.meta.url), "utf8");
+  const m = py.match(/MAX_SCORE = \{([^}]*)\}/);
+  assert.ok(m, "MAX_SCORE not found in games.py");
+  const table = Object.fromEntries([...m![1].matchAll(/"(\w+)":\s*(\d+)/g)].map((x) => [x[1], Number(x[2])]));
+  assert.deepEqual(table, Object.fromEntries(GAMES.map((g) => [g.id, g.max])));
+});

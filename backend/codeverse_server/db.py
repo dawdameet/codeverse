@@ -116,6 +116,7 @@ class Database:
             ("submissions", "manual", "INTEGER NOT NULL DEFAULT 0"),
             ("flags", "resolved", "INTEGER NOT NULL DEFAULT 0"),
             ("flags", "note", "TEXT"),
+            ("adjustments", "phase", "INTEGER NOT NULL DEFAULT 2"),
         ):
             have = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
             if column not in have:

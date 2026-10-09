@@ -32,7 +32,9 @@ const pendingKey = () => `codeverse.games.pending.${getSession()?.participantId 
 
 function readPendingRaw(): string {
   try {
-    return localStorage.getItem(pendingKey()) ?? "{}";
+    const raw = localStorage.getItem(pendingKey()) ?? "{}";
+    JSON.parse(raw); // a damaged value must not crash the page
+    return raw;
   } catch {
     return "{}";
   }

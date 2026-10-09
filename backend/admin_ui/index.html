@@ -243,11 +243,11 @@ async function vGames() {
   const pct = r => Math.round(100 * r.score / r.max);
   return `
   <div class="card scroll"><h2>Official game runs</h2>
-   <p class="dim">Each cell: percentage (weighted points). Weights: ${g.games.map(x => `${GAME_NAMES[x]||x} x${g.weights[x]}`).join(", ")} · max ${g.maxTotal}. Click a result to let that team replay the official run.</p>
-   <table><thead><tr><th>#</th><th>Team</th><th class="num">Played</th><th class="num">Games pts</th>${g.games.map(x=>`<th>${esc(GAME_NAMES[x]||x)}</th>`).join("")}</tr></thead><tbody>
+   <p class="dim">Each cell: percentage (weighted points). Weights: ${g.games.map(x => `${GAME_NAMES[x]||x} x${g.weights[x]}`).join(", ")} · max ${g.maxTotal}. Click any cell to <b>edit</b> that team's score (or clear it so they can replay). Use <b>Scores → Adjust</b> with phase 1 for a bonus/penalty on the total.</p>
+   <table><thead><tr><th>#</th><th>Team</th><th class="num">Played</th><th class="num">Adj.</th><th class="num">Games pts</th>${g.games.map(x=>`<th>${esc(GAME_NAMES[x]||x)}</th>`).join("")}</tr></thead><tbody>
    ${g.rows.map((r, i) => `<tr style="${r.disqualified?"opacity:.5":""}"><td>${r.disqualified?"-":i+1}</td><td>${esc(r.teamId)} <span class="dim">${esc(r.teamName)}</span>${r.disqualified?'<span class="tag bad">DQ</span>':""}</td>
-     <td class="num ${r.played===g.games.length?"ok":""}">${r.played}/${g.games.length}</td><td class="num"><b>${r.total}</b></td>
-     ${g.games.map(x => { const v = r.results[x]; return `<td>${v ? `<a href="#" data-greset="${esc(x)}" data-t="${esc(r.teamId)}" title="${esc(v.detail)} · ${esc(new Date(v.finishedAt).toLocaleTimeString([], {hour12:false}))}">${pct(v)}% <span class="dim">(${v.share})</span></a>` : '<span class="dim">-</span>'}</td>`; }).join("")}</tr>`).join("") || `<tr><td colspan="9" class="dim">No teams.</td></tr>`}
+     <td class="num ${r.played===g.games.length?"ok":""}">${r.played}/${g.games.length}</td><td class="num dim">${r.adjustment||""}</td><td class="num"><b>${r.total}</b></td>
+     ${g.games.map(x => { const v = r.results[x]; return `<td><a href="#" data-gedit="${esc(x)}" data-t="${esc(r.teamId)}" data-score="${v ? v.score : ""}" data-max="${v ? v.max : g.max[x]}" title="${v ? esc(v.detail) + " · " + esc(new Date(v.finishedAt).toLocaleTimeString([], {hour12:false})) : "no result yet - click to set one"}">${v ? `${pct(v)}% <span class="dim">(${v.share})</span>` : '<span class="dim">-</span>'}</a></td>`; }).join("")}</tr>`).join("") || `<tr><td colspan="10" class="dim">No teams.</td></tr>`}
    </tbody></table></div>`;
 }
 
@@ -302,10 +302,10 @@ async function vScores() {
   state.teams = teams; state.lb = lb;
   return `
   <div class="grid g2"><div class="card"><h2>Adjust a score</h2>
-    <p class="dim">Adds or deducts points on top of the computed score (shown to everyone immediately). To change what a team solved, use <b>Submissions</b> (invalidate / grant).</p>
+    <p class="dim">Adds or deducts points on top of the computed games score or OBELISK score (shown to everyone immediately). To change one game's score, use the <b>Games</b> tab. To change what a team solved, use <b>Submissions</b> (invalidate / grant).</p>
     <div class="row"><select id="aTeam">${teams.map(t=>`<option value="${esc(t.teamId)}">${esc(t.teamId)} ${esc(t.teamName)}</option>`).join("")}</select>
-    <input id="aPts" type="number" placeholder="+/- points" style="width:110px"><input id="aWhy" placeholder="reason" style="flex:1"><button class="b" id="aAdd">Apply</button></div></div>
-   <div class="card"><h2>Adjustments</h2>${adj.length?`<table><tbody>${adj.map(a=>`<tr><td>${esc(a.teamId)} ${esc(a.teamName)}</td><td class="num ${a.points<0?"bad":"ok"}">${a.points>0?"+":""}${a.points}</td><td class="dim">${esc(a.reason||"")}</td><td><button class="b warn sm" data-adel="${a.id}">Remove</button></td></tr>`).join("")}</tbody></table>`:'<p class="dim">None.</p>'}</div></div>
+    <select id="aPhase"><option value="2">OBELISK score (phase 2)</option><option value="1">Games score (phase 1)</option></select><input id="aPts" type="number" placeholder="+/- points" style="width:110px"><input id="aWhy" placeholder="reason" style="flex:1"><button class="b" id="aAdd">Apply</button></div></div>
+   <div class="card"><h2>Adjustments</h2>${adj.length?`<table><tbody>${adj.map(a=>`<tr><td>${esc(a.teamId)} ${esc(a.teamName)} <span class="tag">${a.phase===1?"games":"obelisk"}</span></td><td class="num ${a.points<0?"bad":"ok"}">${a.points>0?"+":""}${a.points}</td><td class="dim">${esc(a.reason||"")}</td><td><button class="b warn sm" data-adel="${a.id}">Remove</button></td></tr>`).join("")}</tbody></table>`:'<p class="dim">None.</p>'}</div></div>
   <div class="card scroll"><div class="row" style="justify-content:space-between"><h2>Scores ${lb.finalized?'<span class="tag">finalized – bonus visible to teams</span>':'<span class="tag warnc">bonus shown here is provisional</span>'}</h2><button class="b g sm" id="lbCsv">Export CSV</button></div>
    <table><thead><tr><th>#</th><th>Team</th><th class="num">Games</th><th class="num">Games pts</th><th class="num">Solved</th><th class="num">Base</th><th class="num">Bonus</th><th class="num">Adj.</th><th class="num">OBELISK score</th>${lb.challenges.map(c=>`<th>${c.slice(3)}</th>`).join("")}</tr></thead><tbody>
    ${lb.rows.map(r=>`<tr><td>${r.rank}</td><td>${esc(r.teamId)} <span class="dim">${esc(r.teamName)}</span></td><td class="num">${r.gamesPlayed}/5</td><td class="num">${r.gamesScore}</td><td class="num">${r.solved}</td><td class="num">${r.base}</td><td class="num">${r.bonus}</td><td class="num">${r.adjustment||""}</td><td class="num"><b>${r.score}</b></td>
@@ -370,15 +370,25 @@ function bind() {
     re();
   });
   // games
-  on("[data-greset]", el => confirm(`Delete ${el.dataset.t}'s official ${GAME_NAMES[el.dataset.greset]||el.dataset.greset} result so they can replay it?`) &&
-    act(() => api("/games/reset", {teamId: el.dataset.t, game: el.dataset.greset}), "Result deleted - the team can play it again").then(re));
+  on("[data-gedit]", el => {
+    const t = el.dataset.t, gm = el.dataset.gedit, has = el.dataset.score !== "", name = GAME_NAMES[gm] || gm;
+    modal(`<div class="row" style="justify-content:space-between"><h2>${esc(t)} · ${esc(name)}</h2><button class="b g sm" onclick="closeModal()">Close</button></div>
+      <p class="dim">${has ? `Current official score: <b>${esc(el.dataset.score)}</b> / ${esc(el.dataset.max)}.` : "No official result yet."} The games points shown to everyone update at once.</p>
+      <div class="row"><label>New score (0 - ${esc(el.dataset.max)})</label><input id="gScore" type="number" min="0" max="${esc(el.dataset.max)}" value="${esc(el.dataset.score)}" style="width:110px">
+        <input id="gNote" placeholder="reason (optional)" style="flex:1"></div>
+      <div class="row"><button class="b" id="gSave">Save score</button>
+        ${has ? '<button class="b warn" id="gClear">Delete result (team can replay)</button>' : ""}</div>`);
+    $("#gSave").onclick = async () => { const r = await act(() => api("/games/set", {teamId: t, game: gm, score: +val("gScore"), note: val("gNote")}), "Score saved"); if (r) { closeModal(); re(); } };
+    const c = $("#gClear"); if (c) c.onclick = async () => { if (!confirm("Delete this result? The team will be able to play the official run again.")) return;
+      const r = await act(() => api("/games/reset", {teamId: t, game: gm}), "Result deleted - the team can play it again"); if (r) { closeModal(); re(); } };
+  });
   // submissions
   on("[data-sub]", el => openSub(+el.dataset.sub));
   b("fApply", () => { state.filter = {team: val("fTeam"), challenge: val("fCh"), status: val("fSt")}; re(); });
   b("rjGo", () => confirm("Re-queue matching judged submissions?") && act(() => api("/rejudge", {challenge: val("rjCh"), status: val("rjSt")})).then(r => { if (r) toast(r.requeued + " submissions re-queued"); re(); }));
   b("gGo", () => confirm("Grant this solve? It scores as if solved now.") && act(() => api("/grant", {teamId: val("gTeam"), challenge: val("gCh"), note: val("gNote")}), "Solve granted").then(re));
   // scores
-  b("aAdd", () => act(() => api("/adjustments", {teamId: val("aTeam"), points: val("aPts"), reason: val("aWhy")}), "Adjustment applied").then(re));
+  b("aAdd", () => act(() => api("/adjustments", {teamId: val("aTeam"), points: val("aPts"), reason: val("aWhy"), phase: val("aPhase")}), "Adjustment applied").then(re));
   on("[data-adel]", el => act(() => api("/adjustments/" + el.dataset.adel + "/delete", {}), "Removed").then(re));
   b("lbCsv", () => { const lb = state.lb; download("results.csv", "rank,teamId,teamName,gamesPlayed,gamesScore,solved,base,bonus,adjustment,score\n" + lb.rows.map(r => [r.rank, r.teamId, `"${r.teamName.replace(/"/g,'""')}"`, r.gamesPlayed, r.gamesScore, r.solved, r.base, r.bonus, r.adjustment, r.score].join(",")).join("\n") + "\n"); });
   // flags

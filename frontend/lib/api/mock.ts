@@ -60,12 +60,16 @@ function board(): LeaderboardEntry[] {
       teamName: MOCK_TEAM.teamName,
       score: scoreOf(mine),
       solvedCount: mine.length,
+      gamesScore: gamesSummary().gamesScore,
+      gamesPlayed: gamesSummary().gamesPlayed,
     },
     ...RIVALS.map((r) => ({
       teamId: r.teamId,
       teamName: r.teamName,
       score: scoreOf(r.solved),
       solvedCount: r.solved.length,
+      gamesScore: 300 + 90 * r.solved.length,
+      gamesPlayed: 5,
     })),
   ];
   rows.sort(

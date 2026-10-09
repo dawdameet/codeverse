@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qsl, urlparse
 
@@ -15,9 +17,34 @@ log = logging.getLogger("codeverse.http")
 MAX_BODY = 1_000_000
 
 
+# failed sign-ins allowed per (client address, team) per window before the server answers 429
+LOGIN_FAILS = 8
+LOGIN_WINDOW = 60.0
+_login_failures: dict[tuple[str, str], list[float]] = {}
+_login_lock = threading.Lock()
+
+
+def _login_blocked(key: tuple[str, str]) -> bool:
+    cutoff = time.time() - LOGIN_WINDOW
+    with _login_lock:
+        recent = [t for t in _login_failures.get(key, []) if t > cutoff]
+        _login_failures[key] = recent
+        if len(_login_failures) > 5000:  # bound memory under a flood of random team ids
+            for k in [k for k, v in _login_failures.items() if not v or v[-1] <= cutoff]:
+                del _login_failures[k]
+        return len(recent) >= LOGIN_FAILS
+
+
+def _login_failed(key: tuple[str, str]) -> None:
+    with _login_lock:
+        _login_failures.setdefault(key, []).append(time.time())
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "Codeverse"
     protocol_version = "HTTP/1.1"
+    # a client that connects and then goes quiet (or sends a request very slowly) must not hold a thread forever
+    timeout = 60
 
     @property
     def app(self) -> App:
@@ -44,7 +71,14 @@ class Handler(BaseHTTPRequestHandler):
         """Read the request body exactly once. Handlers that ignore it must still consume it, or the
         leftover bytes corrupt the next request on this keep-alive connection."""
         if getattr(self, "_raw", None) is None:
-            length = int(self.headers.get("Content-Length") or 0)
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                self.close_connection = True
+                raise ApiError(400, "BAD_REQUEST", "invalid Content-Length")
+            if length < 0:
+                self.close_connection = True
+                raise ApiError(400, "BAD_REQUEST", "invalid Content-Length")
             if length > MAX_BODY:
                 self.close_connection = True
                 raise ApiError(413, "TOO_LARGE", "request body too large")
@@ -127,11 +161,16 @@ class Handler(BaseHTTPRequestHandler):
 
 def r_login(h: Handler):
     body = h._body()
+    team_id = str(body.get("teamId", "")).strip().upper()[:40]
+    key = (h.client_address[0], team_id)
+    if _login_blocked(key):
+        raise ApiError(429, "TOO_MANY_ATTEMPTS", "too many wrong codes - wait a minute and try again", retryAfter=LOGIN_WINDOW)
     try:
-        session = auth.login(h.app.db, str(body.get("teamId", "")), str(body.get("accessCode", "")))
+        session = auth.login(h.app.db, team_id, str(body.get("accessCode", "")))
     except auth.Disqualified:
         raise ApiError(403, "DISQUALIFIED", "this team has been disqualified and can no longer sign in")
     if session is None:
+        _login_failed(key)
         raise ApiError(401, "UNAUTHORIZED", "invalid team ID or access code")
     return session
 
@@ -213,6 +252,7 @@ ADMIN_ROUTES = [
     ("POST", re.compile(r"/api/admin/flags/(\d+)"), _ab(adminapi.update_flag, int)),
     ("GET", re.compile(r"/api/admin/audit"), _a(adminapi.audit_log)),
     ("GET", re.compile(r"/api/admin/games"), _a(adminapi.game_results)),
+    ("POST", re.compile(r"/api/admin/games/set"), lambda h: adminapi.set_game_result(h.app, h._body())),
     ("POST", re.compile(r"/api/admin/games/reset"), lambda h: adminapi.reset_game(h.app, h._body())),
 ]
 

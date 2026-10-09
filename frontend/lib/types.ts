@@ -67,8 +67,12 @@ export interface LeaderboardEntry {
   rank: number;
   teamId: string;
   teamName: string;
+  /** OBELISK (phase 2) score. */
   score: number;
   solvedCount: number;
+  /** Phase 1 games points (including any organizer adjustment) and games finished. */
+  gamesScore: number;
+  gamesPlayed: number;
 }
 
 export interface CompetitionStatus {

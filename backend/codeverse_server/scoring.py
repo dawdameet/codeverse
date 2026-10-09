@@ -48,7 +48,7 @@ def leaderboard(db: Database, content: Content, max_bonus: float, include_bonus:
                     bonus[team] += b
     adj = {
         r["team_pk"]: r["total"]
-        for r in db.conn().execute("SELECT team_pk, SUM(points) AS total FROM adjustments GROUP BY team_pk")
+        for r in db.conn().execute("SELECT team_pk, SUM(points) AS total FROM adjustments WHERE phase=2 GROUP BY team_pk")
     }
     rows = []
     for t in teams:
