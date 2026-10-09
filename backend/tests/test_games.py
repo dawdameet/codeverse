@@ -21,6 +21,7 @@ class Games(AdminCase):
         return self.call(method, path, body, {"Authorization": "Bearer " + (tok or self.tok)}, admin=False)
 
     def play(self, game, score=50, max_=100, tok=None):
+        self.T("POST", "/api/games/start", {"game": game}, tok)  # official runs must be opened first
         return self.T("POST", "/api/games", {"game": game, "score": score, "max": max_, "detail": "d", "durationMs": 1000}, tok)
 
     def test_results_are_stored_once_and_visible_everywhere(self):
@@ -71,10 +72,26 @@ class Games(AdminCase):
         # a run that was still going when the clock ran out may still report (grace period)
         self.assertEqual(self.play("safe")[0], 200)
         self.app.db.kv_set("phase1_end", time.time() - games.GRACE_SECONDS - 5)
-        self.assertEqual(self.play("bugs")[1]["error"], "GAMES_CLOSED")
+        self.assertEqual(self.T("POST", "/api/games/start", {"game": "bugs"})[1]["error"], "GAMES_CLOSED")
         # an organizer can still take everyone back to the games
         self.A("/event", {"action": "phase", "number": 1})
         self.assertEqual(self.call("GET", "/api/status")[1]["phase"], 1)
+
+    def test_refreshing_mid_run_does_not_give_a_second_run(self):
+        self.assertEqual(self.T("POST", "/api/games/start", {"game": "safe"})[0], 200)
+        # page refreshed: asking for another official run is refused
+        code, body = self.T("POST", "/api/games/start", {"game": "safe"})
+        self.assertEqual((code, body["error"]), (409, "RUN_IN_PROGRESS"))
+        # a result cannot be recorded for a run that was never started
+        self.assertEqual(self.T("POST", "/api/games", {"game": "ledger", "score": 1, "max": 10})[1]["error"], "NOT_STARTED")
+        # once its time limit has passed the abandoned run is scored 0 and cannot be replayed
+        self.app.db.conn().execute("UPDATE game_starts SET started=?", (time.time() - 3600,))
+        self.assertEqual(self.T("GET", "/api/games")[1]["safe"]["score"], 0)
+        self.assertEqual(self.T("POST", "/api/games/start", {"game": "safe"})[1]["error"], "ALREADY_PLAYED")
+        self.assertEqual(self.T("GET", "/api/me")[1]["gamesPlayed"], 1)
+        # an organizer can reset it
+        self.A("/games/reset", {"teamId": "CV-001", "game": "safe"})
+        self.assertEqual(self.T("POST", "/api/games/start", {"game": "safe"})[0], 200)
 
     def test_paused_event_does_not_advance(self):
         event.pause(self.app.db)

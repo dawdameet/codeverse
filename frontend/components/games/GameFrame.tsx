@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { type GameMeta } from "@/lib/games/registry";
 import { useLive } from "@/lib/hooks";
 import { gamesOpen } from "@/lib/phase";
-import { devMode, saveOfficial, useGameResults, type GameResult, type SaveOutcome } from "@/lib/games/storage";
+import { devMode, saveOfficial, startOfficial, useGameResults, type GameResult, type SaveOutcome } from "@/lib/games/storage";
 
 export type Mode = "practice" | "official";
 
@@ -98,6 +98,16 @@ function Run({
   );
 }
 
+/** Warn before the page is closed or refreshed during an official run (it cannot be resumed). */
+function LeaveGuard() {
+  useEffect(() => {
+    const h = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, []);
+  return null;
+}
+
 export function GameFrame({
   meta,
   children,
@@ -115,7 +125,18 @@ export function GameFrame({
   const locked = Boolean(previous) && !devMode();
   const closed = !window_.open && !devMode();
 
-  const start = (mode: Mode) => {
+  const [startError, setStartError] = useState<string | null>(null);
+
+  const start = async (mode: Mode) => {
+    setStartError(null);
+    if (mode === "official") {
+      const refused = await startOfficial(meta.id);
+      if (refused && !devMode()) {
+        setConfirming(false);
+        setStartError(refused);
+        return;
+      }
+    }
     setResult(null);
     setConfirming(false);
     setRun({
@@ -127,6 +148,8 @@ export function GameFrame({
 
   if (run && !result) {
     return (
+      <>
+        {run.mode === "official" && <LeaveGuard />}
       <Run
         key={run.id}
         meta={meta}
@@ -143,6 +166,7 @@ export function GameFrame({
       >
         {children}
       </Run>
+      </>
     );
   }
 
@@ -245,8 +269,11 @@ export function GameFrame({
         )}
       </div>
       {!locked && confirming && (
-        <p className="text-sm text-amber">You only get one official run. The clock starts immediately.</p>
+        <p className="text-sm text-amber">
+          You only get one official run. The clock starts immediately, and refreshing or leaving the page forfeits it (scored 0).
+        </p>
       )}
+      {startError && <p role="alert" className="text-sm text-amber">{startError}</p>}
     </div>
   );
 }

@@ -48,5 +48,6 @@ export const httpApi: CodeverseApi = {
   getBonusChallenge: () => request("/api/bonus"),
   getLeaderboard: () => request("/api/leaderboard"),
   getGameResults: () => request("/api/games"),
+  startGame: (game) => request("/api/games/start", { method: "POST", body: JSON.stringify({ game }) }),
   submitGameResult: (r) => request("/api/games", { method: "POST", body: JSON.stringify(r) }),
 };

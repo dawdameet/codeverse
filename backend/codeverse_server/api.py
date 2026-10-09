@@ -157,6 +157,7 @@ ROUTES = [
     ("GET", re.compile(r"/api/challenges/([A-Za-z0-9-]+)"), r_challenge),
     ("GET", re.compile(r"/api/bonus"), lambda h: (h._team(), h.app.content.bonus)[1]),
     ("GET", re.compile(r"/api/games"), lambda h: h.app.game_results(h._team())),
+    ("POST", re.compile(r"/api/games/start"), lambda h: h.app.start_game(h._team(), h._body())),
     ("POST", re.compile(r"/api/games"), lambda h: h.app.record_game(h._team(), h._body())),
     ("POST", re.compile(r"/api/submissions"), r_submit),
     ("GET", re.compile(r"/api/submissions"), lambda h: h.app.submissions_for(h._team())),

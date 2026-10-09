@@ -296,7 +296,7 @@ def delete_team(app: App, team_id: str) -> dict:
     c = app.db.conn()
     if c.execute("SELECT 1 FROM submissions WHERE team_pk=?", (t["pk"],)).fetchone():
         raise ApiError(409, "HAS_SUBMISSIONS", "this team has submissions; disqualify it instead")
-    for table in ("tokens", "adjustments", "flags", "game_results"):
+    for table in ("tokens", "adjustments", "flags", "game_results", "game_starts"):
         c.execute(f"DELETE FROM {table} WHERE team_pk=?", (t["pk"],))
     c.execute("DELETE FROM teams WHERE pk=?", (t["pk"],))
     app.audit("team:delete", t["team_id"])
@@ -327,6 +327,7 @@ def reset_game(app: App, body: dict) -> dict:
     if game not in games.WEIGHTS:
         raise ApiError(404, "UNKNOWN_GAME", f"no such game: {game}")
     cur = app.db.conn().execute("DELETE FROM game_results WHERE team_pk=? AND game=?", (t["pk"], game))
+    app.db.conn().execute("DELETE FROM game_starts WHERE team_pk=? AND game=?", (t["pk"], game))
     if not cur.rowcount:
         raise ApiError(404, "NOT_FOUND", f"{t['team_id']} has no official result for {game}")
     app.audit("game:reset", f"{t['team_id']} {game}")

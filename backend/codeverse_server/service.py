@@ -135,6 +135,12 @@ class App:
     def game_results(self, team: sqlite3.Row) -> dict:
         return games.results(self.db, team["pk"])
 
+    def start_game(self, team: sqlite3.Row, body: dict) -> dict:
+        try:
+            return games.start(self.db, team["pk"], body.get("game", ""))
+        except games.GameError as exc:
+            raise ApiError(exc.status, exc.code, exc.message)
+
     def record_game(self, team: sqlite3.Row, body: dict) -> dict:
         try:
             return games.record(self.db, team["pk"], body)

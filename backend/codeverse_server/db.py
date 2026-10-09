@@ -76,6 +76,12 @@ CREATE TABLE IF NOT EXISTS game_results (
     created REAL NOT NULL,
     UNIQUE(team_pk, game)
 );
+CREATE TABLE IF NOT EXISTS game_starts (
+    team_pk INTEGER NOT NULL REFERENCES teams(pk),
+    game TEXT NOT NULL,
+    started REAL NOT NULL,
+    PRIMARY KEY(team_pk, game)
+);
 CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL

@@ -206,6 +206,11 @@ export const mockApi: CodeverseApi = {
     return gameStore();
   },
 
+  async startGame() {
+    await gate();
+    return {};
+  },
+
   async submitGameResult(r) {
     await gate();
     const store = gameStore();

@@ -83,6 +83,21 @@ export function flushPending(): Promise<void> {
   return flushing;
 }
 
+/** Ask the server for the team's one official run of a game. Returns an error message if refused. */
+export async function startOfficial(game: GameId): Promise<string | null> {
+  try {
+    await api.startGame(game);
+    return null;
+  } catch (e) {
+    if (e instanceof ApiError && e.reason === "RUN_IN_PROGRESS")
+      return "An official run of this game was already started and not finished (page left or refreshed). It counts as 0 when its time runs out; ask an organizer to reset it if that was a mistake.";
+    if (e instanceof ApiError && e.reason === "ALREADY_PLAYED") return "Your team already has an official result for this game.";
+    if (e instanceof ApiError && e.reason === "GAMES_CLOSED") return "The games round has closed.";
+    if (e instanceof ApiError && (e.code === "FORBIDDEN" || e.code === "CONFLICT")) return e.message;
+    return "Cannot reach the server - an official run cannot start offline. Check the connection and try again.";
+  }
+}
+
 export async function saveOfficial(result: GameResult): Promise<SaveOutcome> {
   const pending: Store = JSON.parse(readPendingRaw());
   pending[result.game] = result;

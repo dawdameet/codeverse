@@ -24,6 +24,8 @@ export interface CodeverseApi {
   getLeaderboard(): Promise<LeaderboardEntry[]>;
   /** The team's official game results, keyed by game id. */
   getGameResults(): Promise<Record<string, GameResultRecord>>;
+  /** Open the single official run of a game (refreshing the page does not give another). */
+  startGame(game: string): Promise<unknown>;
   /** Record an official game run (once per game). */
   submitGameResult(r: GameResultRecord): Promise<GameResultRecord>;
 }
